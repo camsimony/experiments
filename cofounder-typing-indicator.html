@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cofounder — Chain of Thought</title>
+<style>
+  :root {
+    --bg: #181818;
+    --surface: rgba(255, 255, 255, 0.05);
+    --surface-hover: rgba(255, 255, 255, 0.1);
+    --surface-active: rgba(255, 255, 255, 0.11);
+    --text-root: #fff;
+    --text-label: rgba(255, 255, 255, 0.7);
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --text-tertiary: rgba(255, 255, 255, 0.4);
+    --border: rgba(255, 255, 255, 0.1);
+    --radius: 8px;
+    --row-height: 36px;
+    --dot-color: #f2f2f2;
+    --dot-base-opacity: 0.25;
+    --dot-size: 1.5px;
+    --dot-gap: 1px;
+    --sidebar-width: 200px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, 'SF Pro Display', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--bg); color: var(--text-root);
+    display: flex; justify-content: center;
+    padding: 40px 20px;
+  }
+
+  /* Layout wrapper */
+  .layout {
+    display: flex; gap: 48px;
+    width: 100%; max-width: 920px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    position: sticky; top: 40px; align-self: flex-start;
+    width: var(--sidebar-width); flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-title {
+    font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0 8px; margin-bottom: 4px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; font-family: inherit; font-size: 13px; font-weight: 500;
+    background: transparent; border: none; cursor: pointer; border-radius: 12px;
+    color: var(--text-label); transition: color 0.15s, background 0.15s;
+    text-align: left; width: 100%;
+  }
+  .sidebar-item:hover { background: var(--surface-hover); }
+  .sidebar-item[data-active="true"] { color: rgba(255,255,255,0.9); background: var(--surface-active); }
+  .sidebar-item .sidebar-diamond { flex-shrink: 0; }
+
+  /* Main content */
+  .main { flex: 1; min-width: 0; }
+  .page { width: 100%; max-width: 640px; }
+
+  /* Header */
+  .page-header { margin-bottom: 32px; }
+  .page-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .page-subtitle { font-size: 13px; color: var(--text-tertiary); }
+
+  /* Sections */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+    margin-bottom: 10px; letter-spacing: -0.01em;
+  }
+
+  /* Dialkit-style slider row */
+  .dial-slider {
+    position: relative; height: var(--row-height);
+    background: var(--surface); border-radius: var(--radius);
+    cursor: pointer; user-select: none; overflow: hidden;
+    touch-action: none;
+  }
+  .dial-slider-hashmarks {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  .dial-slider-hashmark {
+    position: absolute; top: 50%; width: 1px; height: 8px; border-radius: 999px;
+    transform: translateX(-50%) translateY(-50%);
+    background: rgba(255,255,255,0); transition: background 200ms;
+  }
+  .dial-slider-handle {
+    position: absolute; top: 50%; width: 3px; height: 20px; border-radius: 999px;
+    transform: translateY(-50%); pointer-events: none;
+    background: rgba(255,255,255,0); transition: background 150ms;
+  }
+  .dial-slider.active .dial-slider-hashmark { background: rgba(255,255,255,0.15); }
+  .dial-slider.active .dial-slider-handle { background: rgba(255,255,255,0.6); }
+  .dial-slider.active .dial-slider-value { color: #fff; }
+  .dial-slider.active .dial-slider-label { color: var(--text-root); }
+  .dial-slider:hover .dial-slider-hashmark { background: rgba(255,255,255,0.15); }
+  .dial-slider:hover .dial-slider-handle { background: rgba(255,255,255,0.4); }
+  .dial-slider:hover .dial-slider-value { color: #fff; }
+  .dial-slider-fill {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    background: rgba(255,255,255,0.06); pointer-events: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+  .dial-slider-label {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; font-weight: 500; color: var(--text-label); pointer-events: none;
+    transition: color 0.15s;
+  }
+  .dial-slider-value {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; font-weight: 500; color: var(--text-label); pointer-events: none;
+    font-family: ui-monospace, 'SF Mono', monospace; transition: color 0.15s;
+  }
+
+  /* Controls stack */
+  .controls-stack { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Button row */
+  .dial-btn-row { display: flex; gap: 6px; }
+  .dial-btn {
+    flex: 1; height: var(--row-height);
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    color: var(--text-secondary); background: var(--surface);
+    border: none; border-radius: var(--radius); cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .dial-btn:hover { background: var(--surface-hover); color: var(--text-root); }
+  .dial-btn[data-active="true"] { background: var(--surface-active); color: rgba(255,255,255,0.85); }
+
+  /* Diamond */
+  .diamond-wrap {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .diamond-grid {
+    display: grid; gap: var(--dot-gap);
+    transform: rotate(45deg) scale(0.72);
+  }
+  .diamond-grid.transitioning {
+    transition: transform 300ms cubic-bezier(0.77, 0, 0.175, 1); /* ease-in-out-quart */
+  }
+  .diamond-grid.upright {
+    transform: rotate(0deg) scale(0.72);
+  }
+  .diamond-dot {
+    width: var(--dot-size); height: var(--dot-size); border-radius: 50%;
+    background: var(--dot-color); opacity: var(--dot-base-opacity);
+    transition: opacity 60ms ease-out;
+  }
+  .diamond-dot.active { opacity: 1; }
+  .diamond-wrap.spinning {
+    animation: diamond-spin 400ms cubic-bezier(0.165, 0.84, 0.44, 1); /* ease-out-quart */
+  }
+  @keyframes diamond-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* Preview */
+  .preview-container {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    padding: 48px 20px;
+    background: var(--surface); border-radius: 16px;
+    min-height: 240px;
+  }
+  .preview-inner {
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 40px;
+  }
+  .preview-box {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px;
+  }
+  .preview-toggle {
+    position: absolute; bottom: 12px; right: 12px;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: none; border-radius: 10px; cursor: pointer;
+    color: #000; transition: opacity 0.15s;
+  }
+  .preview-toggle:hover { opacity: 0.85; }
+  .preview-toggle svg { width: 14px; height: 14px; }
+  .preview-text-slot {
+    position: relative; display: inline-flex; overflow: hidden;
+    height: 1.4em; min-width: 9em; align-items: center;
+    mask-image: linear-gradient(to bottom, transparent, black 20%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 90%, transparent);
+  }
+  .preview-text {
+    font-weight: 400; white-space: nowrap;
+    background: linear-gradient(90deg, var(--text-root) 0%, var(--text-tertiary) 50%, var(--text-root) 100%);
+    background-size: 200% 100%; background-clip: text;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: shimmer 1s ease-in-out infinite;
+  }
+  .preview-text-enter {
+    animation: slide-in 300ms cubic-bezier(0.215, 0.61, 0.355, 1) both,
+               shimmer 1s ease-in-out 300ms infinite;
+  }
+  .preview-text-exit {
+    position: absolute; inset-inline-start: 0;
+    animation: slide-out 300ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+  }
+  .preview-text-done {
+    font-weight: 400; color: var(--text-secondary);
+    background: none; -webkit-text-fill-color: unset;
+  }
+  @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+  @keyframes slide-in { from { transform: translateY(40%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slide-out { 0% { transform: translateY(0); opacity: 1; } 50% { opacity: 0; } 100% { transform: translateY(-40%); opacity: 0; } }
+
+
+  /* Stepper */
+  .stepper {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; background: var(--surface); border-radius: 12px;
+  }
+  .stepper-display { flex: 0 0 60px; display: flex; justify-content: center; }
+  .stepper-info { font-size: 12px; color: var(--text-tertiary); margin-left: auto; font-family: ui-monospace, 'SF Mono', monospace; }
+
+  /* Frame cards */
+  .frame-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
+  .frame-card {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 8px 8px; background: var(--surface); border-radius: var(--radius);
+    cursor: pointer; transition: background 0.15s; border: 1px solid transparent;
+  }
+  .frame-card:hover { background: var(--surface-hover); }
+  .frame-card.active { border-color: var(--border); background: var(--surface-active); }
+  .frame-card .label { font-size: 10px; color: var(--text-tertiary); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- Sidebar: Animation variants -->
+<nav class="sidebar">
+  <div class="sidebar-title">Animations</div>
+  <div id="variantList"></div>
+</nav>
+
+<!-- Main content -->
+<div class="main">
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-title">Cofounder &mdash; Chain of Thought</div>
+    <div class="page-subtitle">Animated diamond spinner with shimmer text cycling and progressive checkmark completion state.</div>
+  </div>
+
+  <!-- Preview -->
+  <div class="section">
+    <div class="section-title">Preview</div>
+    <div class="preview-container">
+      <div class="preview-inner">
+        <div class="preview-box" id="thinkingPreview">
+          <span class="preview-text-slot" id="thinkingSlot">
+            <span class="preview-text">Thinking\u2026</span>
+          </span>
+        </div>
+        <div class="preview-box" id="successPreview">
+          <span class="preview-text-slot" id="successSlot">
+            <span class="preview-text">Thinking\u2026</span>
+          </span>
+        </div>
+      </div>
+      <button class="preview-toggle" id="btnTogglePlay" aria-label="Pause">
+        <svg viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tuning</div>
+    <div class="controls-stack">
+      <div class="dial-slider" id="sliderSpeed">
+        <div class="dial-slider-fill" id="sliderSpeedFill"></div>
+        <span class="dial-slider-label">Speed</span>
+        <span class="dial-slider-value" id="sliderSpeedVal">120ms</span>
+      </div>
+      <div class="dial-slider" id="sliderOpacity">
+        <div class="dial-slider-fill" id="sliderOpacityFill"></div>
+        <span class="dial-slider-label">Base Opacity</span>
+        <span class="dial-slider-value" id="sliderOpacityVal">0.20</span>
+      </div>
+      <div class="dial-slider" id="sliderDotSize">
+        <div class="dial-slider-fill" id="sliderDotSizeFill"></div>
+        <span class="dial-slider-label">Dot Size</span>
+        <span class="dial-slider-value" id="sliderDotSizeVal">2.0px</span>
+      </div>
+      <div class="dial-slider" id="sliderGap">
+        <div class="dial-slider-fill" id="sliderGapFill"></div>
+        <span class="dial-slider-label">Gap</span>
+        <span class="dial-slider-value" id="sliderGapVal">1.5px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stepper -->
+  <div class="section">
+    <div class="section-title">Frame Stepper</div>
+    <div class="stepper">
+      <button class="dial-btn" id="btnPrev" style="flex:0 0 48px">&larr;</button>
+      <div class="stepper-display" id="stepperDisplay"></div>
+      <button class="dial-btn" id="btnNext" style="flex:0 0 48px">&rarr;</button>
+      <span class="stepper-info" id="stepperLabel"></span>
+    </div>
+  </div>
+
+  <!-- All frames -->
+  <div class="section">
+    <div class="section-title">All Frames</div>
+    <div class="frame-grid" id="frameGrid"></div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+const LOADING_MESSAGES = ['Thinking\u2026', 'Analyzing\u2026', 'Researching\u2026', 'Working on it\u2026'];
+const MESSAGE_CYCLE_MS = 3000;
+const SLIDE_DURATION = 300;
+
+// ── Slot-machine text cycling helper ──
+function cycleSlotText(slotEl, newText, cssClass) {
+  const current = slotEl.querySelector('span:not(.preview-text-exit)');
+  if (current) {
+    current.className = 'preview-text preview-text-exit';
+  }
+  const next = document.createElement('span');
+  next.className = 'preview-text preview-text-enter' + (cssClass ? ' ' + cssClass : '');
+  next.textContent = newText;
+  slotEl.appendChild(next);
+  setTimeout(() => {
+    if (current && current.parentNode) current.remove();
+    // Remove enter class so shimmer starts cleanly
+    next.className = 'preview-text' + (cssClass ? ' ' + cssClass : '');
+  }, SLIDE_DURATION);
+}
+
+const SIZE = 7, CENTER = 3;
+
+function getQuadrant(r, c) {
+  const rr = r - CENTER, rc = c - CENTER;
+  if (rr === 0 && rc === 0) return -1;
+  if (Math.abs(rr) === Math.abs(rc)) return -1;
+  if (rr < 0 && Math.abs(rr) > Math.abs(rc)) return 0;
+  if (rc > 0 && Math.abs(rc) > Math.abs(rr)) return 1;
+  if (rr > 0 && Math.abs(rr) > Math.abs(rc)) return 2;
+  if (rc < 0 && Math.abs(rc) > Math.abs(rr)) return 3;
+  return -1;
+}
+function isBorderActive(r, c, active) {
+  return [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([nr,nc]) => {
+    if (nr<0||nr>=SIZE||nc<0||nc>=SIZE) return false;
+    const nq = getQuadrant(nr, nc);
+    return nq !== -1 && active.includes(nq);
+  });
+}
+function makeFrame(active) {
+  return Array.from({ length: SIZE }, (_, r) => Array.from({ length: SIZE }, (_, c) => {
+    const q = getQuadrant(r, c);
+    if (q === -1) return isBorderActive(r, c, active);
+    return active.includes(q);
+  }));
+}
+
+function buildDiamond(frame, dotScale) {
+  const s = dotScale || 1;
+  const wrap = document.createElement('span');
+  wrap.className = 'diamond-wrap';
+  const gridCalc = `(${SIZE} * var(--dot-size) + ${SIZE - 1} * var(--dot-gap))`;
+  wrap.style.width = wrap.style.height = `calc(${s} * ${gridCalc} * 1.1)`;
+  const grid = document.createElement('span');
+  grid.className = 'diamond-grid';
+  grid.style.gridTemplateColumns = `repeat(${SIZE}, 1fr)`;
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++) {
+      const dot = document.createElement('span');
+      dot.className = 'diamond-dot' + (frame[r][c] ? ' active' : '');
+      grid.appendChild(dot);
+    }
+  wrap.appendChild(grid);
+  return wrap;
+}
+function updateDiamond(wrap, frame) {
+  const dots = wrap.querySelectorAll('.diamond-dot');
+  let i = 0;
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++) { dots[i++].classList.toggle('active', frame[r][c]); }
+}
+
+// ── Variants ──
+const VARIANTS = {};
+VARIANTS['Quadrant Rotation'] = { interval: 120, generate() {
+  const seq = [[0],[0,1],[1],[1,2],[2],[2,3],[3],[3,0]];
+  return seq.map((a, i) => ({ frame: makeFrame(a), label: ['T','TR','R','BR','B','BL','L','TL'][i] }));
+}};
+VARIANTS['Edge Trace'] = { interval: 80, generate() {
+  const perim = [];
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if ([[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([nr,nc]) => nr<0||nr>=SIZE||nc<0||nc>=SIZE)) perim.push([r,c]);
+  }
+  perim.sort((a,b) => Math.atan2(a[0]-CENTER,a[1]-CENTER) - Math.atan2(b[0]-CENTER,b[1]-CENTER));
+  return perim.map((_,i) => {
+    const f = Array.from({length:SIZE}, () => Array(SIZE).fill(false));
+    for (let t = 0; t < 4; t++) { const idx = (i-t+perim.length)%perim.length; f[perim[idx][0]][perim[idx][1]] = true; }
+    return { frame: f, label: `${i}` };
+  });
+}};
+VARIANTS['Pulse'] = { interval: 140, generate() {
+  const fwd = [];
+  for (let rad = 0; rad <= CENTER*2; rad++) {
+    fwd.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => Math.abs(Math.abs(r-CENTER)+Math.abs(c-CENTER)-rad)<=0.5)), label: `${rad}` });
+  }
+  return [...fwd, ...fwd.slice().reverse().slice(1)];
+}};
+VARIANTS['Sparkle'] = { interval: 120, generate() {
+  let seed = 42;
+  const rand = () => { seed = (seed*16807)%2147483647; return seed/2147483647; };
+  return Array.from({length:12}, (_,f) => ({ frame: Array.from({length:SIZE}, () => Array.from({length:SIZE}, () => rand()<0.3)), label: `${f}` }));
+}};
+VARIANTS['Spiral'] = { interval: 100, generate() {
+  const cells = [];
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) cells.push([r, c]);
+  cells.sort((a, b) => {
+    const da = Math.abs(a[0]-CENTER) + Math.abs(a[1]-CENTER);
+    const db = Math.abs(b[0]-CENTER) + Math.abs(b[1]-CENTER);
+    if (da !== db) return da - db;
+    return Math.atan2(a[0]-CENTER, a[1]-CENTER) - Math.atan2(b[0]-CENTER, b[1]-CENTER);
+  });
+  const trail = 8;
+  const fwd = [];
+  for (let i = 0; i < cells.length; i++) {
+    const f = Array.from({length:SIZE}, () => Array(SIZE).fill(false));
+    for (let t = 0; t < trail && i-t >= 0; t++) { f[cells[i-t][0]][cells[i-t][1]] = true; }
+    fwd.push({ frame: f, label: `${i}` });
+  }
+  return [...fwd, ...fwd.slice().reverse().slice(1)];
+}};
+VARIANTS['Converge'] = { interval: 100, generate() {
+  const maxDist = CENTER;
+  const fwd = [];
+  for (let d = maxDist; d >= 0; d--) {
+    fwd.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => {
+      const dist = Math.max(Math.abs(r-CENTER), Math.abs(c-CENTER));
+      return dist >= d;
+    })), label: `d${d}` });
+  }
+  return [...fwd, ...fwd.slice().reverse().slice(1)];
+}};
+VARIANTS['Column Sweep'] = { interval: 90, generate() {
+  const trail = 2;
+  const fwd = [];
+  for (let col = -trail; col < SIZE + trail; col++) {
+    fwd.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => c >= col - trail && c <= col)), label: `c${col}` });
+  }
+  const rev = [];
+  for (let col = SIZE + trail - 1; col >= -trail; col--) {
+    rev.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => c >= col && c <= col + trail)), label: `r${col}` });
+  }
+  return [...fwd, ...rev];
+}};
+VARIANTS['Breathe'] = { interval: 120, generate() {
+  const frames = [];
+  for (let d = CENTER; d >= 0; d--) {
+    frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => {
+      const dist = Math.max(Math.abs(r-CENTER), Math.abs(c-CENTER));
+      return dist >= d;
+    })), label: `in${d}` });
+  }
+  frames.push({ frame: Array.from({length:SIZE}, () => Array(SIZE).fill(true)), label: 'full' });
+  frames.push({ frame: Array.from({length:SIZE}, () => Array(SIZE).fill(true)), label: 'full' });
+  for (let d = CENTER; d >= 0; d--) {
+    frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => {
+      const dist = Math.max(Math.abs(r-CENTER), Math.abs(c-CENTER));
+      return dist < d;
+    })), label: `out${d}` });
+  }
+  frames.push({ frame: Array.from({length:SIZE}, () => Array(SIZE).fill(false)), label: 'empty' });
+  return frames;
+}};
+VARIANTS['Cross Sweep'] = { interval: 100, generate() {
+  const frames = [];
+  for (let w = 0; w <= CENTER; w++) {
+    frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => Math.abs(r - CENTER) <= w && c === CENTER || r === CENTER && Math.abs(c - CENTER) <= w)), label: `+${w}` });
+  }
+  frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => r === CENTER || c === CENTER)), label: 'cross' });
+  for (let w = 0; w <= CENTER; w++) {
+    frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => {
+      const dr = Math.abs(r-CENTER), dc = Math.abs(c-CENTER);
+      return (dr === dc && dr <= w);
+    })), label: `x${w}` });
+  }
+  frames.push({ frame: Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => Math.abs(r-CENTER) === Math.abs(c-CENTER))), label: 'X' });
+  return frames;
+}};
+
+// Checkmark dots in draw order: short stroke down, then long stroke up
+const checkDrawOrder = [[4,1],[5,2],[4,3],[3,4],[2,5]];
+const checkFrame = Array.from({length:SIZE}, (_,r) => Array.from({length:SIZE}, (_,c) => checkDrawOrder.some(([dr,dc]) => dr===r && dc===c)));
+const checkFrames = [];
+checkFrames.push(Array.from({length:SIZE}, () => Array(SIZE).fill(false)));
+for (let i = 0; i < checkDrawOrder.length; i++) {
+  const f = Array.from({length:SIZE}, () => Array(SIZE).fill(false));
+  for (let j = 0; j <= i; j++) f[checkDrawOrder[j][0]][checkDrawOrder[j][1]] = true;
+  checkFrames.push(f);
+}
+checkFrames.push(checkFrame, checkFrame, checkFrame);
+
+// Inverted checkmark: all dots active EXCEPT checkmark (for blink effect)
+const invertedCheckFrame = Array.from({length:SIZE}, (_,r) =>
+  Array.from({length:SIZE}, (_,c) =>
+    !checkDrawOrder.some(([dr,dc]) => dr===r && dc===c)
+  )
+);
+
+const SPEED_CYCLE_MS = 500;
+const BLINK_PAUSE_BEFORE = 150;
+const BLINK_STEP_MS = 130;
+const BLINK_PAUSE_AFTER = 250;
+
+// ── State ──
+let currentVariant = 'Quadrant Rotation';
+let allFrames = VARIANTS[currentVariant].generate();
+let interval = VARIANTS[currentVariant].interval;
+let frameIdx = 0, playing = true, timer = null;
+const liveDiamonds = [];
+
+// ── Sidebar variant list ──
+const listEl = document.getElementById('variantList');
+const variantNames = Object.keys(VARIANTS);
+
+// Build a small preview diamond for each sidebar item
+function buildSidebarDiamond(frames) {
+  const wrap = document.createElement('span');
+  wrap.className = 'diamond-wrap sidebar-diamond';
+  const gridCalc = `(${SIZE} * var(--dot-size) + ${SIZE - 1} * var(--dot-gap))`;
+  wrap.style.width = wrap.style.height = `calc(1.6 * ${gridCalc} * 1.1)`;
+  const grid = document.createElement('span');
+  grid.className = 'diamond-grid';
+  grid.style.gridTemplateColumns = `repeat(${SIZE}, 1fr)`;
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++) {
+      const dot = document.createElement('span');
+      dot.className = 'diamond-dot' + (frames[0].frame[r][c] ? ' active' : '');
+      grid.appendChild(dot);
+    }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+// Sidebar mini-animation timers
+const sidebarTimers = [];
+
+variantNames.forEach((name) => {
+  const btn = document.createElement('button');
+  btn.className = 'sidebar-item';
+  btn.dataset.active = name === currentVariant ? 'true' : 'false';
+  btn.dataset.variant = name;
+
+  const frames = VARIANTS[name].generate();
+  const diamond = buildSidebarDiamond(frames);
+  btn.appendChild(diamond);
+
+  const label = document.createElement('span');
+  label.textContent = name;
+  btn.appendChild(label);
+
+  // Animate the sidebar thumbnail
+  let idx = 0;
+  const t = setInterval(() => {
+    idx = (idx + 1) % frames.length;
+    updateDiamond(diamond, frames[idx].frame);
+  }, VARIANTS[name].interval);
+  sidebarTimers.push(t);
+
+  btn.addEventListener('click', () => {
+    currentVariant = name;
+    allFrames = VARIANTS[name].generate();
+    interval = VARIANTS[name].interval;
+    sliders.speed.value = interval;
+    updateSlider('speed');
+    frameIdx = 0;
+    listEl.querySelectorAll('.sidebar-item').forEach(b => b.dataset.active = b.dataset.variant === name ? 'true' : 'false');
+    rebuildFrameGrid();
+    updateDisplay();
+    if (playing) startTimer();
+  });
+  listEl.appendChild(btn);
+});
+
+// ── Dialkit-style sliders ──
+const sliders = {
+  speed:   { el: 'sliderSpeed',   fill: 'sliderSpeedFill',   val: 'sliderSpeedVal',   min: 40, max: 400, value: 120, fmt: v => Math.round(v)+'ms', apply: v => { interval = Math.round(v); if (playing) startTimer(); } },
+  opacity: { el: 'sliderOpacity', fill: 'sliderOpacityFill', val: 'sliderOpacityVal', min: 0.05, max: 0.5, value: 0.25, step: 0.01, fmt: v => v.toFixed(2), apply: v => document.documentElement.style.setProperty('--dot-base-opacity', v) },
+  dotSize: { el: 'sliderDotSize', fill: 'sliderDotSizeFill', val: 'sliderDotSizeVal', min: 1, max: 4, value: 1.5, step: 0.5, fmt: v => v.toFixed(1)+'px', apply: v => document.documentElement.style.setProperty('--dot-size', v+'px') },
+  gap:     { el: 'sliderGap',     fill: 'sliderGapFill',     val: 'sliderGapVal',     min: 0, max: 4, value: 1, step: 0.5, fmt: v => v.toFixed(1)+'px', apply: v => document.documentElement.style.setProperty('--dot-gap', v+'px') },
+};
+const SLIDER_TICKS = {
+  speed:   [50, 100, 150, 200, 250, 300, 350, 400],
+  opacity: [0.1, 0.2, 0.3, 0.4, 0.5],
+  dotSize: [1, 1.5, 2, 2.5, 3, 3.5, 4],
+  gap:     [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4],
+};
+
+function updateSlider(key) {
+  const s = sliders[key];
+  const pct = (s.value - s.min) / (s.max - s.min) * 100;
+  document.getElementById(s.fill).style.width = pct + '%';
+  document.getElementById(s.val).textContent = s.fmt(s.value);
+  const handle = document.getElementById(s.el).querySelector('.dial-slider-handle');
+  if (handle) {
+    const HANDLE_INSET = 6;
+    handle.style.left = `max(2px, calc(${pct}% - ${HANDLE_INSET}px))`;
+  }
+}
+function initSlider(key) {
+  const s = sliders[key];
+  const el = document.getElementById(s.el);
+
+  const ticks = SLIDER_TICKS[key] || [];
+  const hashmarks = document.createElement('div');
+  hashmarks.className = 'dial-slider-hashmarks';
+  ticks.forEach(v => {
+    const mark = document.createElement('div');
+    mark.className = 'dial-slider-hashmark';
+    const pct = (v - s.min) / (s.max - s.min) * 100;
+    mark.style.left = pct + '%';
+    hashmarks.appendChild(mark);
+  });
+  el.appendChild(hashmarks);
+
+  const handle = document.createElement('div');
+  handle.className = 'dial-slider-handle';
+  el.appendChild(handle);
+
+  updateSlider(key);
+  let dragging = false;
+  function setFromX(x) {
+    const rect = el.getBoundingClientRect();
+    let pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+    let v = s.min + pct * (s.max - s.min);
+    if (s.step) v = Math.round(v / s.step) * s.step;
+    s.value = Math.max(s.min, Math.min(s.max, v));
+    updateSlider(key);
+    s.apply(s.value);
+  }
+  el.addEventListener('pointerdown', e => { dragging = true; el.setPointerCapture(e.pointerId); el.classList.add('active'); setFromX(e.clientX); });
+  el.addEventListener('pointermove', e => { if (dragging) setFromX(e.clientX); });
+  el.addEventListener('pointerup', () => { dragging = false; el.classList.remove('active'); });
+}
+Object.keys(sliders).forEach(initSlider);
+
+// ── Build thinking preview (independent variant cycling) ──
+const PREVIEW_VARIANTS = ['Quadrant Rotation', 'Pulse', 'Edge Trace', 'Converge'];
+const SPIN_MS = 400;
+
+const thinkingBox = document.getElementById('thinkingPreview');
+const thinkingDiamond = buildDiamond(allFrames[0].frame, 1);
+thinkingBox.prepend(thinkingDiamond);
+
+let thinkingVariantIdx = 0;
+let thinkingSpinnerTimer = null;
+
+function startThinkingSpinner() {
+  const name = PREVIEW_VARIANTS[thinkingVariantIdx];
+  const frames = VARIANTS[name].generate();
+  let fi = 0;
+  updateDiamond(thinkingDiamond, frames[0].frame);
+  if (thinkingSpinnerTimer) clearInterval(thinkingSpinnerTimer);
+  thinkingSpinnerTimer = setInterval(() => {
+    fi = (fi + 1) % frames.length;
+    updateDiamond(thinkingDiamond, frames[fi].frame);
+  }, VARIANTS[name].interval);
+}
+startThinkingSpinner();
+
+const thinkingSlot = document.getElementById('thinkingSlot');
+let thinkingMsgIdx = 0;
+const thinkingMsgTimer = setInterval(() => {
+  thinkingMsgIdx = (thinkingMsgIdx + 1) % LOADING_MESSAGES.length;
+  cycleSlotText(thinkingSlot, LOADING_MESSAGES[thinkingMsgIdx]);
+  // Switch variant + 360° spin
+  thinkingVariantIdx = thinkingMsgIdx % PREVIEW_VARIANTS.length;
+  startThinkingSpinner();
+  thinkingDiamond.classList.add('spinning');
+  setTimeout(() => thinkingDiamond.classList.remove('spinning'), SPIN_MS);
+}, MESSAGE_CYCLE_MS);
+
+// ── Success transition demo (auto-loops) ──
+const successBox = document.getElementById('successPreview');
+const successDiamond = buildDiamond(allFrames[0].frame, 1);
+successBox.prepend(successDiamond);
+const successGrid = successDiamond.querySelector('.diamond-grid');
+const successSlot = document.getElementById('successSlot');
+
+function runSuccessDemo() {
+  const demoStart = Date.now();
+
+  // Reset visual state
+  successGrid.classList.remove('transitioning', 'upright');
+  successDiamond.classList.remove('spinning');
+  successGrid.offsetHeight; // force reflow
+  successSlot.innerHTML = '<span class="preview-text">Thinking\u2026</span>';
+
+  let msgIdx = 0;
+  let msgsShown = 1;
+  let sVariantIdx = 0;
+  let sSpinnerTimer = null;
+
+  function startSuccessSpinner() {
+    const name = PREVIEW_VARIANTS[sVariantIdx];
+    const frames = VARIANTS[name].generate();
+    let fi = 0;
+    updateDiamond(successDiamond, frames[0].frame);
+    if (sSpinnerTimer) clearInterval(sSpinnerTimer);
+    sSpinnerTimer = setInterval(() => {
+      fi = (fi + 1) % frames.length;
+      updateDiamond(successDiamond, frames[fi].frame);
+    }, VARIANTS[name].interval);
+  }
+  startSuccessSpinner();
+
+  const msgTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length;
+    msgsShown++;
+    cycleSlotText(successSlot, LOADING_MESSAGES[msgIdx]);
+    sVariantIdx = msgIdx % PREVIEW_VARIANTS.length;
+    startSuccessSpinner();
+    successDiamond.classList.add('spinning');
+    setTimeout(() => successDiamond.classList.remove('spinning'), SPIN_MS);
+  }, MESSAGE_CYCLE_MS);
+
+  // Trigger done after ~6.5s of thinking
+  setTimeout(() => {
+    clearInterval(msgTimer);
+
+    // Determine remaining messages to speed-cycle through
+    const shownSoFar = Math.min(msgsShown, LOADING_MESSAGES.length);
+    let nextIdx = shownSoFar;
+
+    // Phase 0: Speed-cycle remaining messages
+    function speedCycleNext() {
+      if (nextIdx >= LOADING_MESSAGES.length) {
+        setTimeout(doneTransition, SPEED_CYCLE_MS / 2);
+        return;
+      }
+
+      const newText = LOADING_MESSAGES[nextIdx];
+      cycleSlotText(successSlot, newText);
+
+      sVariantIdx = nextIdx % PREVIEW_VARIANTS.length;
+      startSuccessSpinner();
+      successDiamond.classList.add('spinning');
+      setTimeout(() => successDiamond.classList.remove('spinning'), SPIN_MS);
+
+      nextIdx++;
+      setTimeout(speedCycleNext, SPEED_CYCLE_MS);
+    }
+
+    // Phases 1-3: Clear grid, rotate upright, draw checkmark
+    function doneTransition() {
+      if (sSpinnerTimer) { clearInterval(sSpinnerTimer); sSpinnerTimer = null; }
+
+      const emptyFrame = Array.from({length:SIZE}, () => Array(SIZE).fill(false));
+      updateDiamond(successDiamond, emptyFrame);
+
+      requestAnimationFrame(() => {
+        successGrid.classList.add('transitioning');
+        requestAnimationFrame(() => {
+          successGrid.classList.add('upright');
+        });
+      });
+
+      setTimeout(() => {
+        cycleSlotText(successSlot, 'Done', 'preview-text-done');
+        let step = 1;
+        const drawTimer = setInterval(() => {
+          if (step >= checkFrames.length) {
+            clearInterval(drawTimer);
+            blinkSequence();
+            return;
+          }
+          updateDiamond(successDiamond, checkFrames[step]);
+          step++;
+        }, 35);
+      }, 340);
+    }
+
+    // Phase 4: Blink completed state 2x
+    function blinkSequence() {
+      const steps = [invertedCheckFrame, checkFrame, invertedCheckFrame, checkFrame];
+      let blinkStep = 0;
+
+      function nextBlink() {
+        if (blinkStep >= steps.length) {
+          // Phase 5: Swap to elapsed time, then restart demo
+          setTimeout(() => {
+            const elapsed = Math.max(1, Math.round((Date.now() - demoStart) / 1000));
+            cycleSlotText(successSlot, `Thought for ${elapsed}s`, 'preview-text-done');
+            setTimeout(runSuccessDemo, 3000);
+          }, BLINK_PAUSE_AFTER);
+          return;
+        }
+
+        const delay = blinkStep === 0 ? BLINK_PAUSE_BEFORE : BLINK_STEP_MS;
+        setTimeout(() => {
+          updateDiamond(successDiamond, steps[blinkStep]);
+          blinkStep++;
+          nextBlink();
+        }, delay);
+      }
+
+      nextBlink();
+    }
+
+    // Start the sequence
+    if (nextIdx < LOADING_MESSAGES.length) {
+      speedCycleNext();
+    } else {
+      doneTransition();
+    }
+  }, 6500);
+}
+runSuccessDemo();
+
+// ── Stepper ──
+const stepperDiamond = buildDiamond(allFrames[0].frame, 3);
+document.getElementById('stepperDisplay').appendChild(stepperDiamond);
+document.getElementById('btnPrev').addEventListener('click', () => { frameIdx = (frameIdx-1+allFrames.length)%allFrames.length; updateDisplay(); });
+document.getElementById('btnNext').addEventListener('click', () => { frameIdx = (frameIdx+1)%allFrames.length; updateDisplay(); });
+
+// ── Frame grid ──
+function rebuildFrameGrid() {
+  const el = document.getElementById('frameGrid'); el.innerHTML = '';
+  allFrames.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'frame-card'; card.dataset.frameIdx = i;
+    card.appendChild(buildDiamond(f.frame, 2));
+    const lbl = document.createElement('span'); lbl.className = 'label'; lbl.textContent = '#' + i;
+    card.appendChild(lbl);
+    card.addEventListener('click', () => { frameIdx = i; updateDisplay(); });
+    el.appendChild(card);
+  });
+}
+rebuildFrameGrid();
+
+// ── Play/Pause toggle ──
+const PLAY_SVG = '<svg viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5a1 1 0 0 1 1.5-.87l8 5.5a1 1 0 0 1 0 1.74l-8 5.5A1 1 0 0 1 3 12.5v-11z"/></svg>';
+const PAUSE_SVG = '<svg viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>';
+const toggleBtn = document.getElementById('btnTogglePlay');
+toggleBtn.addEventListener('click', () => {
+  playing = !playing;
+  toggleBtn.innerHTML = playing ? PAUSE_SVG : PLAY_SVG;
+  toggleBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  if (playing) startTimer(); else stopTimer();
+});
+
+// ── Update ──
+function updateDisplay() {
+  const f = allFrames[frameIdx];
+  liveDiamonds.forEach(d => updateDiamond(d, f.frame));
+  updateDiamond(stepperDiamond, f.frame);
+  document.getElementById('stepperLabel').textContent = `${frameIdx+1}/${allFrames.length}`;
+  document.querySelectorAll('.frame-card').forEach((c,i) => c.classList.toggle('active', i === frameIdx));
+}
+updateDisplay();
+
+function startTimer() { stopTimer(); timer = setInterval(() => { frameIdx = (frameIdx+1)%allFrames.length; updateDisplay(); }, interval); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+startTimer();
+</script>
+</body>
+</html>
