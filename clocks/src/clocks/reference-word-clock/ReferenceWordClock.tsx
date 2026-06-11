@@ -71,13 +71,13 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
         <g className="reference-clock__hands" aria-hidden="true">
           <g ref={minuteHandRef} className="reference-clock__hand reference-clock__hand--minute" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 18} x2={VIEWBOX.centerX} y2="112" />
+            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
           </g>
           <g ref={hourHandRef} className="reference-clock__hand reference-clock__hand--hour" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 12} x2={VIEWBOX.centerX} y2="158" />
+            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 12} x2={VIEWBOX.centerX} y2="106" />
           </g>
           <g ref={secondHandRef} className="reference-clock__hand reference-clock__hand--second" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 160} x2={VIEWBOX.centerX} y2="151" />
+            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 142} x2={VIEWBOX.centerX} y2="78" />
           </g>
         </g>
 
