@@ -17,6 +17,7 @@ export const runtimeDialConfig = {
     secondHandColor: {type: 'color', default: '#bf1f39'},
     hourHandWidth: [5.2, 1, 14, 0.1],
     minuteHandWidth: [5.8, 1, 14, 0.1],
+    minuteHandBlur: [0.75, 0, 6, 0.05],
     secondHandWidth: [2, 0.5, 8, 0.1],
     centerPinRadius: [4, 1, 14, 0.1],
     artboardScale: [1, 0.7, 1.25, 0.01],
@@ -40,6 +41,7 @@ export type RuntimeDialValues = {
     secondHandColor: string;
     hourHandWidth: number;
     minuteHandWidth: number;
+    minuteHandBlur: number;
     secondHandWidth: number;
     centerPinRadius: number;
     artboardScale: number;

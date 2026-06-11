@@ -13,6 +13,7 @@ export type ClockRuntimeParams = {
     secondHandColor: string;
     hourHandWidth: number;
     minuteHandWidth: number;
+    minuteHandBlur: number;
     secondHandWidth: number;
     centerPinRadius: number;
     artboardScale: number;
@@ -50,6 +51,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     secondHandColor: '#bf1f39',
     hourHandWidth: 5.2,
     minuteHandWidth: 5.8,
+    minuteHandBlur: 0.75,
     secondHandWidth: 2,
     centerPinRadius: 4,
     artboardScale: 1,

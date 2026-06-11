@@ -25,6 +25,7 @@ function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
       secondHandColor: dial.Visuals.secondHandColor,
       hourHandWidth: dial.Visuals.hourHandWidth,
       minuteHandWidth: dial.Visuals.minuteHandWidth,
+      minuteHandBlur: dial.Visuals.minuteHandBlur,
       secondHandWidth: dial.Visuals.secondHandWidth,
       centerPinRadius: dial.Visuals.centerPinRadius,
       artboardScale: dial.Visuals.artboardScale,

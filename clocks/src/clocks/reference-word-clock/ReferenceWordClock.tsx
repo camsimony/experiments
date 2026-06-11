@@ -65,7 +65,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
             <stop offset="100%" stopColor="#ab122b" />
           </radialGradient>
           <filter id="minute-hand-soft-blur" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="0.75" />
+            <feGaussianBlur stdDeviation={visuals.minuteHandBlur} />
           </filter>
         </defs>
 
