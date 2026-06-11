@@ -1,0 +1,75 @@
+.reference-clock {
+  --word-color: #2f9e48;
+  --second-hand-color: #bf1f39;
+  --hour-hand-width: 5.2;
+  --minute-hand-width: 5.8;
+  --second-hand-width: 2;
+  --center-pin-radius: 4;
+  --artboard-scale: 1;
+
+  width: min(82vw, 520px);
+  aspect-ratio: 420 / 524;
+  transform: scale(var(--artboard-scale));
+  transform-origin: center;
+}
+
+.reference-clock__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+}
+
+.reference-clock__paper {
+  fill: #fffefb;
+}
+
+.reference-clock__word {
+  fill: var(--word-color);
+  font-family: Futura, "Avenir Next Condensed", "League Spartan", Montserrat, "Arial Narrow", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 0.2px;
+  stroke-linejoin: round;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+}
+
+.reference-clock__hand line {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: butt;
+}
+
+.reference-clock__hand--hour line {
+  stroke: #020202;
+  stroke-width: var(--hour-hand-width);
+}
+
+.reference-clock__hand--minute line {
+  stroke: #d7d7d7;
+  stroke-width: var(--minute-hand-width);
+}
+
+.reference-clock__hand--second line {
+  stroke: var(--second-hand-color);
+  stroke-width: var(--second-hand-width);
+}
+
+.reference-clock__center rect {
+  fill: rgba(221, 0, 117, 0.14);
+}
+
+.reference-clock__center circle {
+  fill: #bd1430;
+}
+
+@media (max-width: 640px) {
+  .reference-clock {
+    width: min(94vw, 430px);
+  }
+}
