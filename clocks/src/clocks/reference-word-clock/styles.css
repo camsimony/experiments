@@ -7,7 +7,7 @@
   --center-pin-radius: 4;
   --artboard-scale: 1;
 
-  width: min(88vw, 620px);
+  width: min(88vw, calc(84svh * 1.247619));
   aspect-ratio: 524 / 420;
   transform: scale(var(--artboard-scale));
   transform-origin: center;
@@ -83,6 +83,6 @@
 
 @media (max-width: 640px) {
   .reference-clock {
-    width: min(94vw, 430px);
+    width: min(94vw, calc(82svh * 1.247619));
   }
 }

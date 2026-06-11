@@ -41,7 +41,7 @@ textarea {
   display: grid;
   place-items: center;
   width: 100%;
-  max-width: 720px;
+  max-width: none;
 }
 
 .clock-app__caption {
