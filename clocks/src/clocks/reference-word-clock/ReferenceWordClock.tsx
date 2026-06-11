@@ -86,6 +86,9 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
         <g className="reference-clock__hands" aria-hidden="true">
           <g ref={minuteHandRef} className="reference-clock__hand reference-clock__hand--minute" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
+            <foreignObject className="reference-clock__minute-backdrop" x={VIEWBOX.centerX - 12} y="60" width="24" height={VIEWBOX.centerY + 16 - 60}>
+              <div className="reference-clock__minute-backdrop-shape" />
+            </foreignObject>
             <line className="reference-clock__hand-border" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
             <line className="reference-clock__hand-core" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
           </g>
