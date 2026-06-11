@@ -27,14 +27,14 @@
 }
 
 .reference-clock__word {
-  fill: var(--word-color);
+  fill: url("#word-gradient");
   font-family: Futura, "Avenir Next Condensed", "League Spartan", Montserrat, "Arial Narrow", sans-serif;
   font-weight: 500;
   letter-spacing: -0.035em;
   dominant-baseline: middle;
-  paint-order: stroke;
-  stroke: rgba(255, 255, 255, 0.06);
-  stroke-width: 0.2px;
+  paint-order: fill stroke;
+  stroke: rgba(0, 0, 0, 0.05);
+  stroke-width: 0.5px;
   stroke-linejoin: round;
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
@@ -42,30 +42,43 @@
 
 .reference-clock__hand line {
   vector-effect: non-scaling-stroke;
-  stroke-linecap: butt;
+  stroke-linecap: round;
 }
 
-.reference-clock__hand--hour line {
-  stroke: #020202;
+.reference-clock__hand--hour .reference-clock__hand-border {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: calc(var(--hour-hand-width) + 1);
+}
+
+.reference-clock__hand--hour .reference-clock__hand-core {
+  stroke: url("#hour-hand-gradient");
   stroke-width: var(--hour-hand-width);
 }
 
-.reference-clock__hand--minute line {
-  stroke: #d7d7d7;
+.reference-clock__hand--minute .reference-clock__hand-border {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: calc(var(--minute-hand-width) + 1);
+}
+
+.reference-clock__hand--minute .reference-clock__hand-core {
+  stroke: url("#minute-hand-gradient");
   stroke-width: var(--minute-hand-width);
 }
 
-.reference-clock__hand--second line {
-  stroke: var(--second-hand-color);
+.reference-clock__hand--second .reference-clock__hand-border {
+  stroke: rgba(0, 0, 0, 0.1);
+  stroke-width: calc(var(--second-hand-width) + 1);
+}
+
+.reference-clock__hand--second .reference-clock__hand-core {
+  stroke: url("#second-hand-gradient");
   stroke-width: var(--second-hand-width);
 }
 
-.reference-clock__center rect {
-  fill: rgba(221, 0, 117, 0.14);
-}
-
 .reference-clock__center circle {
-  fill: #bd1430;
+  fill: url("#center-pin-gradient");
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 0.5px;
 }
 
 @media (max-width: 640px) {

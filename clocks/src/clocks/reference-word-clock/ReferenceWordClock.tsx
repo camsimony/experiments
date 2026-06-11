@@ -44,11 +44,26 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         aria-label="Working clock with number words arranged around the hands"
       >
         <defs>
-          <filter id="center-glow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="4.5" result="blur" />
-            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.85  0 1 0 0 0.06  0 0 1 0 0.5  0 0 0 0.45 0" />
-            <feBlend in="SourceGraphic" />
-          </filter>
+          <linearGradient id="word-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--word-color)" />
+            <stop offset="100%" stopColor="#28863d" />
+          </linearGradient>
+          <linearGradient id="minute-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.24" />
+          </linearGradient>
+          <linearGradient id="hour-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.86" />
+          </linearGradient>
+          <linearGradient id="second-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
+            <stop offset="0%" stopColor="var(--second-hand-color)" />
+            <stop offset="100%" stopColor="#ab122b" />
+          </linearGradient>
+          <radialGradient id="center-pin-gradient" cx="42%" cy="38%" r="70%">
+            <stop offset="0%" stopColor="#bd1430" />
+            <stop offset="100%" stopColor="#ab122b" />
+          </radialGradient>
         </defs>
 
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
@@ -71,18 +86,20 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
         <g className="reference-clock__hands" aria-hidden="true">
           <g ref={minuteHandRef} className="reference-clock__hand reference-clock__hand--minute" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
+            <line className="reference-clock__hand-border" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
+            <line className="reference-clock__hand-core" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 16} x2={VIEWBOX.centerX} y2="60" />
           </g>
           <g ref={hourHandRef} className="reference-clock__hand reference-clock__hand--hour" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 12} x2={VIEWBOX.centerX} y2="106" />
+            <line className="reference-clock__hand-border" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 12} x2={VIEWBOX.centerX} y2="106" />
+            <line className="reference-clock__hand-core" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 12} x2={VIEWBOX.centerX} y2="106" />
           </g>
           <g ref={secondHandRef} className="reference-clock__hand reference-clock__hand--second" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>
-            <line x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 142} x2={VIEWBOX.centerX} y2="78" />
+            <line className="reference-clock__hand-border" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 142} x2={VIEWBOX.centerX} y2="78" />
+            <line className="reference-clock__hand-core" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 142} x2={VIEWBOX.centerX} y2="78" />
           </g>
         </g>
 
-        <g className="reference-clock__center" aria-hidden="true" filter="url(#center-glow)">
-          <rect x={VIEWBOX.centerX - 10} y={VIEWBOX.centerY - 10} width="20" height="20" rx="1.5" />
+        <g className="reference-clock__center" aria-hidden="true">
           <circle cx={VIEWBOX.centerX} cy={VIEWBOX.centerY} r="var(--center-pin-radius)" />
         </g>
       </svg>
