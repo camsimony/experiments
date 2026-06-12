@@ -1,14 +1,39 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
-import {DialRoot, useDialKit} from 'dialkit';
+import {useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent} from 'react';
+import {DialRoot, DialStore, useDialKit} from 'dialkit';
 
 import {clockRegistry, getClockById} from './app/clockRegistry';
 import {DEFAULT_RUNTIME_PARAMS, type ClockRuntimeParams, type MotionMode} from './app/clockTypes';
 import {getInitialClockId} from './app/galleryState';
 import {shouldReduceMotion} from './engine/time';
-import {runtimeDialConfig, type RuntimeDialValues} from './clocks/reference-word-clock/dialConfig';
+import {runtimeDialConfig, themeDialConfig, type RuntimeDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
+import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
 import './styles/global.css';
 
-function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
+type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg', string>;
+
+function clampThemeIndex(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return 0;
+  return Math.max(0, Math.min(REFERENCE_CLOCK_THEME_PRESETS.length - 1, parsed));
+}
+
+function getThemePresetsFromDial(dial: ThemeDialValues): ReferenceClockThemePreset[] {
+  return [
+    {name: 'Reference', ...dial.Reference},
+    {name: 'Blueprint', ...dial.Blueprint},
+    {name: 'Licorice', ...dial.Licorice},
+    {name: 'Sorbet', ...dial.Sorbet},
+    {name: 'Moss', ...dial.Moss},
+  ];
+}
+
+function setThemeDialIndex(index: number) {
+  const panel = DialStore.getPanels().find((candidate) => candidate.name === 'Clock themes');
+  if (!panel) return;
+  DialStore.updateValue(panel.id, 'Active.theme', String(index));
+}
+
+function toRuntimeParams(dial: RuntimeDialValues, theme: ReferenceClockThemePreset): ClockRuntimeParams {
   const mode = dial.Time.mode === 'scrub' ? 'scrub' : 'live';
   const motionMode: MotionMode = dial.Motion.mode === 'tick-settle' ? 'tick-settle' : 'continuous';
 
@@ -20,9 +45,8 @@ function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
       minute: dial.Time.minute,
       second: dial.Time.second,
     },
+    theme: buildClockThemeRuntime(theme),
     visuals: {
-      wordColor: dial.Visuals.wordColor,
-      secondHandColor: dial.Visuals.secondHandColor,
       hourHandWidth: dial.Visuals.hourHandWidth,
       minuteHandWidth: dial.Visuals.minuteHandWidth,
       minuteHandBlur: dial.Visuals.minuteHandBlur,
@@ -63,8 +87,12 @@ export default function App() {
       'Visuals.artboardScale': {key: 'z', interaction: 'move', mode: 'fine'},
     },
   }) as RuntimeDialValues;
+  const themeDial = useDialKit('Clock themes', themeDialConfig) as ThemeDialValues;
+  const themePresets = getThemePresetsFromDial(themeDial);
+  const activeThemeIndex = clampThemeIndex(themeDial.Active.theme);
+  const activeTheme = themePresets[activeThemeIndex];
 
-  runtimeParamsRef.current = toRuntimeParams(dial);
+  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme);
 
   useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));
@@ -84,9 +112,15 @@ export default function App() {
 
   const activeClock = getClockById(activeClockId);
   const ActiveClock = activeClock.Component;
+  const style: ClockAppCssVars = {'--clock-app-bg': runtimeParamsRef.current.theme.pageBg};
+
+  const cycleTheme = (event: MouseEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest('.dialkit-root')) return;
+    setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
+  };
 
   return (
-    <main className="clock-app">
+    <main className="clock-app" style={style} onClick={cycleTheme}>
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>

@@ -4,13 +4,33 @@ import type {ScrubTime, ClockMode} from '../engine/time';
 
 export type MotionMode = 'continuous' | 'tick-settle';
 
+export type ClockRuntimeTheme = {
+  pageBg: string;
+  paperColor: string;
+  wordColor: string;
+  wordGradientStart: string;
+  wordGradientEnd: string;
+  hourHandColor: string;
+  hourHandEndColor: string;
+  hourHandBorderColor: string;
+  minuteHandColor: string;
+  minuteHandEndColor: string;
+  minuteHandSoftColor: string;
+  minuteHandBorderColor: string;
+  secondHandColor: string;
+  secondHandEndColor: string;
+  secondHandBorderColor: string;
+  centerPinColor: string;
+  centerPinEndColor: string;
+  centerPinStrokeColor: string;
+};
+
 export type ClockRuntimeParams = {
   mode: ClockMode;
   motionMode: MotionMode;
   scrubTime: ScrubTime;
+  theme: ClockRuntimeTheme;
   visuals: {
-    wordColor: string;
-    secondHandColor: string;
     hourHandWidth: number;
     minuteHandWidth: number;
     minuteHandBlur: number;
@@ -59,9 +79,27 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
   mode: 'live',
   motionMode: 'continuous',
   scrubTime: {hour: 10, minute: 8, second: 34},
-  visuals: {
+  theme: {
+    pageBg: '#fffefb',
+    paperColor: '#fffefb',
     wordColor: '#2f9e48',
+    wordGradientStart: '#42a85a',
+    wordGradientEnd: '#28883e',
+    hourHandColor: '#070604',
+    hourHandEndColor: '#060503',
+    hourHandBorderColor: 'rgba(255, 255, 255, 0.32)',
+    minuteHandColor: '#0f0d09',
+    minuteHandEndColor: '#0e0c08',
+    minuteHandSoftColor: 'rgba(15, 13, 9, 0.22)',
+    minuteHandBorderColor: 'rgba(255, 255, 255, 0.28)',
     secondHandColor: '#bf1f39',
+    secondHandEndColor: '#ab1c33',
+    secondHandBorderColor: 'rgba(77, 13, 23, 0.18)',
+    centerPinColor: '#bd1430',
+    centerPinEndColor: '#a9122b',
+    centerPinStrokeColor: 'rgba(255, 255, 255, 0.36)',
+  },
+  visuals: {
     hourHandWidth: 5.2,
     minuteHandWidth: 5.8,
     minuteHandBlur: 0.75,

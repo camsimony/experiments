@@ -1,5 +1,9 @@
 import type {DialConfig} from 'dialkit';
 
+import {REFERENCE_CLOCK_THEME_PRESETS} from './themes';
+
+const themeOptions = REFERENCE_CLOCK_THEME_PRESETS.map((theme, index) => ({value: String(index), label: theme.name}));
+
 export const runtimeDialConfig = {
   Time: {
     mode: {type: 'select', options: ['live', 'scrub'], default: 'live'},
@@ -13,8 +17,6 @@ export const runtimeDialConfig = {
     settleDurationMs: [210, 80, 600, 10],
   },
   Visuals: {
-    wordColor: {type: 'color', default: '#2f9e48'},
-    secondHandColor: {type: 'color', default: '#bf1f39'},
     hourHandWidth: [5.2, 1, 14, 0.1],
     minuteHandWidth: [5.8, 1, 14, 0.1],
     minuteHandBlur: [0.75, 0, 6, 0.05],
@@ -37,6 +39,72 @@ export const runtimeDialConfig = {
   },
 } satisfies DialConfig;
 
+export const themeDialConfig = {
+  Active: {
+    theme: {type: 'select', options: themeOptions, default: '0'},
+  },
+  Reference: {
+    pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].pageBg},
+    wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].wordColor},
+    hourHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].hourHandColor},
+    minuteHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].minuteHandColor},
+    secondHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].secondHandColor},
+    centerPinColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].centerPinColor},
+  },
+  Blueprint: {
+    pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].pageBg},
+    wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].wordColor},
+    hourHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].hourHandColor},
+    minuteHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].minuteHandColor},
+    secondHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].secondHandColor},
+    centerPinColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[1].centerPinColor},
+  },
+  Licorice: {
+    pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].pageBg},
+    wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].wordColor},
+    hourHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].hourHandColor},
+    minuteHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].minuteHandColor},
+    secondHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].secondHandColor},
+    centerPinColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[2].centerPinColor},
+  },
+  Sorbet: {
+    pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].pageBg},
+    wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].wordColor},
+    hourHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].hourHandColor},
+    minuteHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].minuteHandColor},
+    secondHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].secondHandColor},
+    centerPinColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[3].centerPinColor},
+  },
+  Moss: {
+    pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].pageBg},
+    wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].wordColor},
+    hourHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].hourHandColor},
+    minuteHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].minuteHandColor},
+    secondHandColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].secondHandColor},
+    centerPinColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[4].centerPinColor},
+  },
+} satisfies DialConfig;
+
+type ThemeColorDialValues = {
+  pageBg: string;
+  wordColor: string;
+  hourHandColor: string;
+  minuteHandColor: string;
+  secondHandColor: string;
+  centerPinColor: string;
+};
+
+export type ThemeDialValues = {
+  Active: {
+    theme: string;
+  };
+  Reference: ThemeColorDialValues;
+  Blueprint: ThemeColorDialValues;
+  Licorice: ThemeColorDialValues;
+  Sorbet: ThemeColorDialValues;
+  Moss: ThemeColorDialValues;
+};
+
 export type RuntimeDialValues = {
   Time: {
     mode: string;
@@ -50,8 +118,6 @@ export type RuntimeDialValues = {
     settleDurationMs: number;
   };
   Visuals: {
-    wordColor: string;
-    secondHandColor: string;
     hourHandWidth: number;
     minuteHandWidth: number;
     minuteHandBlur: number;

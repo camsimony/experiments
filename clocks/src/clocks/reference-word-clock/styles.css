@@ -1,6 +1,21 @@
 .reference-clock {
+  --paper-color: #fffefb;
   --word-color: #2f9e48;
+  --word-gradient-start: #42a85a;
+  --word-gradient-end: #28883e;
+  --hour-hand-color: #070604;
+  --hour-hand-end-color: #060503;
+  --hour-hand-border-color: rgba(255, 255, 255, 0.32);
+  --minute-hand-color: #0f0d09;
+  --minute-hand-end-color: #0e0c08;
+  --minute-hand-soft-color: rgba(15, 13, 9, 0.22);
+  --minute-hand-border-color: rgba(255, 255, 255, 0.28);
   --second-hand-color: #bf1f39;
+  --second-hand-end-color: #ab1c33;
+  --second-hand-border-color: rgba(77, 13, 23, 0.18);
+  --center-pin-color: #bd1430;
+  --center-pin-end-color: #a9122b;
+  --center-pin-stroke-color: rgba(255, 255, 255, 0.36);
   --hour-hand-width: 5.2;
   --minute-hand-width: 5.8;
   --second-hand-width: 2;
@@ -31,7 +46,8 @@
 }
 
 .reference-clock__paper {
-  fill: #fffefb;
+  fill: var(--paper-color);
+  transition: fill 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .reference-clock__word-hover-target {
@@ -45,7 +61,7 @@
   letter-spacing: -0.035em;
   dominant-baseline: middle;
   paint-order: fill stroke;
-  stroke: rgba(0, 0, 0, 0.05);
+  stroke: color-mix(in srgb, var(--word-color) 14%, transparent);
   stroke-width: 0.5px;
   stroke-linejoin: round;
   -webkit-font-smoothing: antialiased;
@@ -61,12 +77,12 @@
 .reference-clock__hand--minute .reference-clock__hand-soft {
   filter: url("#minute-hand-soft-blur");
   opacity: 0.55;
-  stroke: rgba(0, 0, 0, 0.2);
+  stroke: var(--minute-hand-soft-color);
   stroke-width: calc(var(--minute-hand-width) + 2.5);
 }
 
 .reference-clock__hand--hour .reference-clock__hand-border {
-  stroke: rgba(255, 255, 255, 0.2);
+  stroke: var(--hour-hand-border-color);
   stroke-width: calc(var(--hour-hand-width) + 1);
 }
 
@@ -76,7 +92,7 @@
 }
 
 .reference-clock__hand--minute .reference-clock__hand-border {
-  stroke: rgba(255, 255, 255, 0.2);
+  stroke: var(--minute-hand-border-color);
   stroke-width: calc(var(--minute-hand-width) + 1);
 }
 
@@ -86,7 +102,7 @@
 }
 
 .reference-clock__hand--second .reference-clock__hand-border {
-  stroke: rgba(0, 0, 0, 0.1);
+  stroke: var(--second-hand-border-color);
   stroke-width: calc(var(--second-hand-width) + 1);
 }
 
@@ -97,7 +113,7 @@
 
 .reference-clock__center circle {
   fill: url("#center-pin-gradient");
-  stroke: rgba(255, 255, 255, 0.3);
+  stroke: var(--center-pin-stroke-color);
   stroke-width: 0.5px;
 }
 

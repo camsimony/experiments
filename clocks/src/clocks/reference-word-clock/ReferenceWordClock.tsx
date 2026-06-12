@@ -5,7 +5,31 @@ import {useClockRuntime} from '../../engine/useClockRuntime';
 import {VIEWBOX, WORD_LAYOUT} from './layout';
 import './styles.css';
 
-type ClockCssVars = CSSProperties & Record<'--word-color' | '--second-hand-color' | '--hour-hand-width' | '--minute-hand-width' | '--second-hand-width' | '--center-pin-radius' | '--artboard-scale', string>;
+type ClockCssVars = CSSProperties & Record<
+  | '--paper-color'
+  | '--word-color'
+  | '--word-gradient-start'
+  | '--word-gradient-end'
+  | '--hour-hand-color'
+  | '--hour-hand-end-color'
+  | '--hour-hand-border-color'
+  | '--minute-hand-color'
+  | '--minute-hand-end-color'
+  | '--minute-hand-soft-color'
+  | '--minute-hand-border-color'
+  | '--second-hand-color'
+  | '--second-hand-end-color'
+  | '--second-hand-border-color'
+  | '--center-pin-color'
+  | '--center-pin-end-color'
+  | '--center-pin-stroke-color'
+  | '--hour-hand-width'
+  | '--minute-hand-width'
+  | '--second-hand-width'
+  | '--center-pin-radius'
+  | '--artboard-scale',
+  string
+>;
 
 type WordMagnetState = {
   x: number;
@@ -101,6 +125,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1})));
   const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
   const visuals = runtimeParamsRef.current.visuals;
+  const theme = runtimeParamsRef.current.theme;
 
   useClockRuntime({
     hands: {
@@ -185,8 +210,23 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   };
 
   const style: ClockCssVars = {
-    '--word-color': visuals.wordColor,
-    '--second-hand-color': visuals.secondHandColor,
+    '--paper-color': theme.paperColor,
+    '--word-color': theme.wordColor,
+    '--word-gradient-start': theme.wordGradientStart,
+    '--word-gradient-end': theme.wordGradientEnd,
+    '--hour-hand-color': theme.hourHandColor,
+    '--hour-hand-end-color': theme.hourHandEndColor,
+    '--hour-hand-border-color': theme.hourHandBorderColor,
+    '--minute-hand-color': theme.minuteHandColor,
+    '--minute-hand-end-color': theme.minuteHandEndColor,
+    '--minute-hand-soft-color': theme.minuteHandSoftColor,
+    '--minute-hand-border-color': theme.minuteHandBorderColor,
+    '--second-hand-color': theme.secondHandColor,
+    '--second-hand-end-color': theme.secondHandEndColor,
+    '--second-hand-border-color': theme.secondHandBorderColor,
+    '--center-pin-color': theme.centerPinColor,
+    '--center-pin-end-color': theme.centerPinEndColor,
+    '--center-pin-stroke-color': theme.centerPinStrokeColor,
     '--hour-hand-width': `${visuals.hourHandWidth}`,
     '--minute-hand-width': `${visuals.minuteHandWidth}`,
     '--second-hand-width': `${visuals.secondHandWidth}`,
@@ -212,24 +252,24 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
       >
         <defs>
           <linearGradient id="word-gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--word-color)" />
-            <stop offset="100%" stopColor="#28863d" />
+            <stop offset="0%" stopColor="var(--word-gradient-start)" />
+            <stop offset="100%" stopColor="var(--word-gradient-end)" />
           </linearGradient>
           <linearGradient id="minute-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
-            <stop offset="0%" stopColor="#000000" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0.24" />
+            <stop offset="0%" stopColor="var(--minute-hand-color)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--minute-hand-end-color)" stopOpacity="0.3" />
           </linearGradient>
           <linearGradient id="hour-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
-            <stop offset="0%" stopColor="#000000" stopOpacity="0.72" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0.86" />
+            <stop offset="0%" stopColor="var(--hour-hand-color)" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="var(--hour-hand-end-color)" stopOpacity="0.9" />
           </linearGradient>
           <linearGradient id="second-hand-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={VIEWBOX.width} y2="0">
             <stop offset="0%" stopColor="var(--second-hand-color)" />
-            <stop offset="100%" stopColor="#ab122b" />
+            <stop offset="100%" stopColor="var(--second-hand-end-color)" />
           </linearGradient>
           <radialGradient id="center-pin-gradient" cx="42%" cy="38%" r="70%">
-            <stop offset="0%" stopColor="#bd1430" />
-            <stop offset="100%" stopColor="#ab122b" />
+            <stop offset="0%" stopColor="var(--center-pin-color)" />
+            <stop offset="100%" stopColor="var(--center-pin-end-color)" />
           </radialGradient>
           <filter id="minute-hand-soft-blur" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation={visuals.minuteHandBlur} />
