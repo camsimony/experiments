@@ -138,7 +138,10 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         }
 
         node.classList.toggle('is-interacting', Boolean(activePoint));
-        node.style.transform = `translate(${state.x.toFixed(3)}px, ${state.y.toFixed(3)}px) scale(${state.scale.toFixed(4)})`;
+        node.setAttribute(
+          'transform',
+          `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,
+        );
       });
 
       if (allResting) {
@@ -146,7 +149,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
           const node = wordRefs.current[index];
           if (!node) return;
           node.classList.remove('is-interacting');
-          node.style.transform = '';
+          node.removeAttribute('transform');
         });
       }
 
