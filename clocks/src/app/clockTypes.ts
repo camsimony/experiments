@@ -30,6 +30,7 @@ export type ClockRuntimeParams = {
     basePull: number;
     falloffDistance: number;
     maxScaleLift: number;
+    cursorCapture: number;
     followSmoothing: number;
     returnSmoothing: number;
   };
@@ -79,6 +80,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     basePull: 1.5,
     falloffDistance: 190,
     maxScaleLift: 0.09,
+    cursorCapture: 0.92,
     followSmoothing: 0.46,
     returnSmoothing: 0.28,
   },

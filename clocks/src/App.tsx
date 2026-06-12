@@ -42,6 +42,7 @@ function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
       basePull: dial.WordMagnet.basePull,
       falloffDistance: dial.WordMagnet.falloffDistance,
       maxScaleLift: dial.WordMagnet.maxScaleLift,
+      cursorCapture: dial.WordMagnet.cursorCapture,
       followSmoothing: dial.WordMagnet.followSmoothing,
       returnSmoothing: dial.WordMagnet.returnSmoothing,
     },

@@ -30,6 +30,7 @@ export const runtimeDialConfig = {
     basePull: [1.5, 0, 8, 0.1],
     falloffDistance: [190, 80, 340, 5],
     maxScaleLift: [0.09, 0, 0.22, 0.005],
+    cursorCapture: [0.92, 0.2, 1.2, 0.01],
     followSmoothing: [0.46, 0.05, 0.9, 0.01],
     returnSmoothing: [0.28, 0.05, 0.8, 0.01],
   },
@@ -65,6 +66,7 @@ export type RuntimeDialValues = {
     basePull: number;
     falloffDistance: number;
     maxScaleLift: number;
+    cursorCapture: number;
     followSmoothing: number;
     returnSmoothing: number;
   };

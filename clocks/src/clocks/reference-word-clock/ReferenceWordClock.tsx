@@ -23,6 +23,7 @@ type WordMagnetSettings = {
   basePull: number;
   falloffDistance: number;
   maxScaleLift: number;
+  cursorCapture: number;
   followSmoothing: number;
   returnSmoothing: number;
 };
@@ -66,7 +67,8 @@ function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {
   const distance = Math.max(Math.hypot(dx, dy), 1);
   const proximity = 1 - clamp(distance / settings.falloffDistance, 0, 1);
   const intensity = proximity * proximity;
-  const pull = settings.basePull + settings.maxPull * intensity;
+  const rawPull = settings.basePull + settings.maxPull * intensity;
+  const pull = Math.min(rawPull, distance * settings.cursorCapture);
 
   return {
     x: (dx / distance) * pull,
