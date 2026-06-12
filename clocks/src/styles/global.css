@@ -3,8 +3,8 @@
 }
 
 :root {
-  color: #1a1815;
-  background: #fffefb;
+  color: oklch(0.213 0.006 62.958);
+  background: oklch(0.997 0.004 91.445);
   font-family: Futura, "League Spartan", Montserrat, Avenir, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -34,7 +34,7 @@ textarea {
   display: grid;
   place-items: center;
   padding: clamp(16px, 4vw, 48px);
-  background: var(--clock-app-bg, #fffefb);
+  background: var(--clock-app-bg, oklch(0.997 0.004 91.445));
 }
 
 .clock-app__stage {

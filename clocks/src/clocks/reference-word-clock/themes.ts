@@ -10,56 +10,75 @@ export type ReferenceClockThemePreset = {
   centerPinColor: string;
 };
 
+type RgbColor = {
+  r: number;
+  g: number;
+  b: number;
+};
+
 export const REFERENCE_CLOCK_THEME_PRESETS = [
   {
     name: 'Reference',
-    pageBg: '#fffefb',
-    wordColor: '#2f9e48',
-    hourHandColor: '#070604',
-    minuteHandColor: '#0f0d09',
-    secondHandColor: '#bf1f39',
-    centerPinColor: '#bd1430',
+    pageBg: 'oklch(0.997 0.004 91.445)',
+    wordColor: 'oklch(0.618 0.159 147.291)',
+    hourHandColor: 'oklch(0.123 0.007 87.645)',
+    minuteHandColor: 'oklch(0.16 0.009 84.696)',
+    secondHandColor: 'oklch(0.522 0.192 19.552)',
+    centerPinColor: 'oklch(0.511 0.196 21.199)',
   },
   {
     name: 'Blueprint',
-    pageBg: '#f4f8ff',
-    wordColor: '#2457d6',
-    hourHandColor: '#101a33',
-    minuteHandColor: '#27406f',
-    secondHandColor: '#ff6a3d',
-    centerPinColor: '#ff6a3d',
+    pageBg: 'oklch(0.978 0.01 261.789)',
+    wordColor: 'oklch(0.505 0.203 263.881)',
+    hourHandColor: 'oklch(0.223 0.051 265.973)',
+    minuteHandColor: 'oklch(0.376 0.087 261.939)',
+    secondHandColor: 'oklch(0.704 0.192 37.126)',
+    centerPinColor: 'oklch(0.704 0.192 37.126)',
   },
   {
     name: 'Licorice',
-    pageBg: '#16120f',
-    wordColor: '#f1c75b',
-    hourHandColor: '#fff4d7',
-    minuteHandColor: '#d7a844',
-    secondHandColor: '#ef5b4c',
-    centerPinColor: '#ef5b4c',
+    pageBg: 'oklch(0.186 0.009 59.061)',
+    wordColor: 'oklch(0.846 0.134 87.909)',
+    hourHandColor: 'oklch(0.968 0.04 89.685)',
+    minuteHandColor: 'oklch(0.757 0.128 83.223)',
+    secondHandColor: 'oklch(0.663 0.185 28.8)',
+    centerPinColor: 'oklch(0.663 0.185 28.8)',
   },
   {
     name: 'Sorbet',
-    pageBg: '#fff1ea',
-    wordColor: '#e35d83',
-    hourHandColor: '#4b2631',
-    minuteHandColor: '#8d4657',
-    secondHandColor: '#1b9a8f',
-    centerPinColor: '#1b9a8f',
+    pageBg: 'oklch(0.967 0.018 48.531)',
+    wordColor: 'oklch(0.658 0.17 5.363)',
+    hourHandColor: 'oklch(0.322 0.057 1.789)',
+    minuteHandColor: 'oklch(0.488 0.098 6.18)',
+    secondHandColor: 'oklch(0.62 0.104 185.665)',
+    centerPinColor: 'oklch(0.62 0.104 185.665)',
   },
   {
     name: 'Moss',
-    pageBg: '#f4f1df',
-    wordColor: '#647a2f',
-    hourHandColor: '#202616',
-    minuteHandColor: '#55613b',
-    secondHandColor: '#c9572c',
-    centerPinColor: '#c9572c',
+    pageBg: 'oklch(0.956 0.024 99.108)',
+    wordColor: 'oklch(0.545 0.105 123.61)',
+    hourHandColor: 'oklch(0.257 0.03 125.136)',
+    minuteHandColor: 'oklch(0.472 0.059 122.937)',
+    secondHandColor: 'oklch(0.595 0.156 39.946)',
+    centerPinColor: 'oklch(0.595 0.156 39.946)',
   },
 ] satisfies ReferenceClockThemePreset[];
 
+const WHITE = 'oklch(1 0 0)';
+const BLACK = 'oklch(0 0 0)';
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function formatNumber(value: number) {
+  const formatted = value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  return formatted === '-0' ? '0' : formatted;
+}
+
+function formatOklch(lightness: number, chroma: number, hue: number, alpha = 1) {
+  const channels = `${formatNumber(lightness)} ${formatNumber(chroma)} ${formatNumber(hue)}`;
+  return alpha < 1 ? `oklch(${channels} / ${formatNumber(alpha)})` : `oklch(${channels})`;
 }
 
 function expandHex(hex: string) {
@@ -73,7 +92,7 @@ function expandHex(hex: string) {
   return clean.padEnd(6, '0').slice(0, 6);
 }
 
-function toRgb(hex: string) {
+function parseHexColor(hex: string): RgbColor {
   const expanded = expandHex(hex);
   return {
     r: Number.parseInt(expanded.slice(0, 2), 16),
@@ -82,40 +101,122 @@ function toRgb(hex: string) {
   };
 }
 
+function parseOklchColor(color: string) {
+  const match = color.match(/oklch\(\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)(?:\s*\/\s*([\d.-]+))?\s*\)/i);
+  if (!match) return null;
+
+  return {
+    lightness: Number.parseFloat(match[1]),
+    chroma: Number.parseFloat(match[2]),
+    hue: Number.parseFloat(match[3]),
+    alpha: match[4] ? Number.parseFloat(match[4]) : 1,
+  };
+}
+
+function linearToSrgb(value: number) {
+  const clamped = clamp(value, 0, 1);
+  if (clamped <= 0.0031308) return clamped * 12.92;
+  return 1.055 * clamped ** (1 / 2.4) - 0.055;
+}
+
+function srgbToLinear(value: number) {
+  const channel = value / 255;
+  if (channel <= 0.04045) return channel / 12.92;
+  return ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function oklchToRgb(color: string): RgbColor {
+  const parsed = parseOklchColor(color);
+  if (!parsed) return parseHexColor(color);
+
+  const hueRadians = (parsed.hue * Math.PI) / 180;
+  const a = parsed.chroma * Math.cos(hueRadians);
+  const b = parsed.chroma * Math.sin(hueRadians);
+  const lPrime = parsed.lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = parsed.lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = parsed.lightness - 0.0894841775 * a - 1.291485548 * b;
+  const l = lPrime ** 3;
+  const m = mPrime ** 3;
+  const s = sPrime ** 3;
+
+  return {
+    r: Math.round(linearToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255),
+    g: Math.round(linearToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255),
+    b: Math.round(linearToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s) * 255),
+  };
+}
+
+function rgbToOklch({r, g, b}: RgbColor, alpha = 1) {
+  const red = srgbToLinear(r);
+  const green = srgbToLinear(g);
+  const blue = srgbToLinear(b);
+  const l = 0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue;
+  const m = 0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue;
+  const s = 0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue;
+  const lPrime = Math.cbrt(l);
+  const mPrime = Math.cbrt(m);
+  const sPrime = Math.cbrt(s);
+  const lightness = 0.2104542553 * lPrime + 0.793617785 * mPrime - 0.0040720468 * sPrime;
+  const a = 1.9779984951 * lPrime - 2.428592205 * mPrime + 0.4505937099 * sPrime;
+  const oklabB = 0.0259040371 * lPrime + 0.7827717662 * mPrime - 0.808675766 * sPrime;
+  const chroma = Math.sqrt(a * a + oklabB * oklabB);
+  const hue = chroma < 0.0005 ? 0 : (Math.atan2(oklabB, a) * 180) / Math.PI;
+
+  return formatOklch(lightness, chroma, hue < 0 ? hue + 360 : hue, alpha);
+}
+
+function toRgb(color: string): RgbColor {
+  return color.trim().startsWith('oklch(') ? oklchToRgb(color) : parseHexColor(color);
+}
+
 function toHexChannel(value: number) {
   return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0');
 }
 
-function mix(hex: string, target: string, amount: number) {
-  const color = toRgb(hex);
-  const targetColor = toRgb(target);
-  return `#${toHexChannel(color.r + (targetColor.r - color.r) * amount)}${toHexChannel(color.g + (targetColor.g - color.g) * amount)}${toHexChannel(color.b + (targetColor.b - color.b) * amount)}`;
+export function toHexColorInput(color: string) {
+  const {r, g, b} = toRgb(color);
+  return `#${toHexChannel(r)}${toHexChannel(g)}${toHexChannel(b)}`;
 }
 
-function rgba(hex: string, alpha: number) {
-  const {r, g, b} = toRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+function toOklch(color: string, alpha = 1) {
+  const parsed = parseOklchColor(color);
+  if (parsed) return formatOklch(parsed.lightness, parsed.chroma, parsed.hue, alpha < 1 ? alpha : parsed.alpha);
+  return rgbToOklch(parseHexColor(color), alpha);
+}
+
+function mix(color: string, target: string, amount: number) {
+  const sourceColor = toRgb(color);
+  const targetColor = toRgb(target);
+  return rgbToOklch({
+    r: sourceColor.r + (targetColor.r - sourceColor.r) * amount,
+    g: sourceColor.g + (targetColor.g - sourceColor.g) * amount,
+    b: sourceColor.b + (targetColor.b - sourceColor.b) * amount,
+  });
+}
+
+function withAlpha(color: string, alpha: number) {
+  return toOklch(color, alpha);
 }
 
 export function buildClockThemeRuntime(theme: ReferenceClockThemePreset): ClockRuntimeTheme {
   return {
-    pageBg: theme.pageBg,
-    paperColor: theme.pageBg,
-    wordColor: theme.wordColor,
-    wordGradientStart: mix(theme.wordColor, '#ffffff', 0.08),
-    wordGradientEnd: mix(theme.wordColor, '#000000', 0.14),
-    hourHandColor: theme.hourHandColor,
-    hourHandEndColor: mix(theme.hourHandColor, '#000000', 0.16),
-    hourHandBorderColor: rgba(mix(theme.pageBg, '#ffffff', 0.38), 0.32),
-    minuteHandColor: theme.minuteHandColor,
-    minuteHandEndColor: mix(theme.minuteHandColor, '#000000', 0.1),
-    minuteHandSoftColor: rgba(theme.minuteHandColor, 0.22),
-    minuteHandBorderColor: rgba(mix(theme.pageBg, '#ffffff', 0.42), 0.28),
-    secondHandColor: theme.secondHandColor,
-    secondHandEndColor: mix(theme.secondHandColor, '#000000', 0.1),
-    secondHandBorderColor: rgba(mix(theme.secondHandColor, '#000000', 0.35), 0.18),
-    centerPinColor: theme.centerPinColor,
-    centerPinEndColor: mix(theme.centerPinColor, '#000000', 0.12),
-    centerPinStrokeColor: rgba(mix(theme.pageBg, '#ffffff', 0.5), 0.36),
+    pageBg: toOklch(theme.pageBg),
+    paperColor: toOklch(theme.pageBg),
+    wordColor: toOklch(theme.wordColor),
+    wordGradientStart: mix(theme.wordColor, WHITE, 0.08),
+    wordGradientEnd: mix(theme.wordColor, BLACK, 0.14),
+    hourHandColor: toOklch(theme.hourHandColor),
+    hourHandEndColor: mix(theme.hourHandColor, BLACK, 0.16),
+    hourHandBorderColor: withAlpha(mix(theme.pageBg, WHITE, 0.38), 0.32),
+    minuteHandColor: toOklch(theme.minuteHandColor),
+    minuteHandEndColor: mix(theme.minuteHandColor, BLACK, 0.1),
+    minuteHandSoftColor: withAlpha(theme.minuteHandColor, 0.22),
+    minuteHandBorderColor: withAlpha(mix(theme.pageBg, WHITE, 0.42), 0.28),
+    secondHandColor: toOklch(theme.secondHandColor),
+    secondHandEndColor: mix(theme.secondHandColor, BLACK, 0.1),
+    secondHandBorderColor: withAlpha(mix(theme.secondHandColor, BLACK, 0.35), 0.18),
+    centerPinColor: toOklch(theme.centerPinColor),
+    centerPinEndColor: mix(theme.centerPinColor, BLACK, 0.12),
+    centerPinStrokeColor: withAlpha(mix(theme.pageBg, WHITE, 0.5), 0.36),
   };
 }
