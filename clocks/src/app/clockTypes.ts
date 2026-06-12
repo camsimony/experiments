@@ -78,7 +78,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     previewY: 218,
     maxPull: 25,
     basePull: 0.5,
-    falloffDistance: 160,
+    falloffDistance: 235,
     maxScaleLift: 0.17,
     cursorCapture: 0.2,
     followSmoothing: 0.19,
