@@ -72,6 +72,7 @@ function toRuntimeParams(
       releaseToken: themePress.releaseToken,
       inwardPull: switchMotion.inwardPull,
       scaleDip: switchMotion.scaleDip,
+      maxRotation: switchMotion.maxRotation,
       pressSmoothing: switchMotion.pressSmoothing,
       releaseSmoothing: switchMotion.releaseSmoothing,
       releaseIgnoreMs: switchMotion.releaseIgnoreMs,
@@ -137,20 +138,34 @@ export default function App() {
   const beginThemePress = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0 || isDialKitEventTarget(event.target)) return;
     themePressingRef.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail for synthetic events; the interaction still works without it.
+    }
     setThemePress((current) => ({...current, isPressing: true}));
   };
 
-  const releaseThemePress = () => {
+  const releaseThemePress = (event: PointerEvent<HTMLElement>) => {
     if (!themePressingRef.current) return;
     themePressingRef.current = false;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Matching the capture guard above.
+    }
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 
-  const cancelThemePress = () => {
+  const cancelThemePress = (event: PointerEvent<HTMLElement>) => {
     if (!themePressingRef.current) return;
     themePressingRef.current = false;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Matching the capture guard above.
+    }
     setThemePress((current) => ({...current, isPressing: false}));
   };
 

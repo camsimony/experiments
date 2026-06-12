@@ -35,6 +35,7 @@ type WordMagnetState = {
   x: number;
   y: number;
   scale: number;
+  rotation: number;
 };
 
 type WordMagnetTarget = WordMagnetState;
@@ -44,6 +45,7 @@ type ThemeSwitchSettings = {
   releaseToken: number;
   inwardPull: number;
   scaleDip: number;
+  maxRotation: number;
   pressSmoothing: number;
   releaseSmoothing: number;
   releaseIgnoreMs: number;
@@ -104,8 +106,16 @@ function calculateRingActivation(point: {x: number; y: number}, settings: WordMa
   return outerStrength * innerStrength;
 }
 
-function calculateThemeSwitchTarget(word: {x: number; y: number}, settings: ThemeSwitchSettings): WordMagnetTarget {
-  if (!settings.isPressing) return {x: 0, y: 0, scale: 1};
+function createPressRotations(maxRotation: number) {
+  return WORD_LAYOUT.map(() => {
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const amount = maxRotation * (0.42 + Math.random() * 0.58);
+    return direction * amount;
+  });
+}
+
+function calculateThemeSwitchTarget(word: {x: number; y: number}, settings: ThemeSwitchSettings, rotation: number): WordMagnetTarget {
+  if (!settings.isPressing) return {x: 0, y: 0, scale: 1, rotation: 0};
 
   const dx = VIEWBOX.centerX - word.x;
   const dy = VIEWBOX.centerY - word.y;
@@ -116,11 +126,12 @@ function calculateThemeSwitchTarget(word: {x: number; y: number}, settings: Them
     x: (dx / distance) * pull,
     y: (dy / distance) * pull,
     scale: 1 - settings.scaleDip,
+    rotation,
   };
 }
 
 function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}, settings: WordMagnetSettings, fieldStrength: number): WordMagnetTarget {
-  if (!point || fieldStrength <= 0) return {x: 0, y: 0, scale: 1};
+  if (!point || fieldStrength <= 0) return {x: 0, y: 0, scale: 1, rotation: 0};
 
   const dx = point.x - word.x;
   const dy = point.y - word.y;
@@ -134,11 +145,12 @@ function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {
     x: (dx / distance) * pull,
     y: (dy / distance) * pull,
     scale: 1 + settings.maxScaleLift * intensity * fieldStrength,
+    rotation: 0,
   };
 }
 
 function isNearlyResting(state: WordMagnetState) {
-  return Math.abs(state.x) < 0.01 && Math.abs(state.y) < 0.01 && Math.abs(state.scale - 1) < 0.0005;
+  return Math.abs(state.x) < 0.01 && Math.abs(state.y) < 0.01 && Math.abs(state.scale - 1) < 0.0005 && Math.abs(state.rotation) < 0.005;
 }
 
 export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps) {
@@ -147,9 +159,10 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const minuteHandRef = useRef<SVGGElement>(null);
   const secondHandRef = useRef<SVGGElement>(null);
   const wordRefs = useRef<Array<SVGGElement | null>>([]);
-  const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1})));
+  const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1, rotation: 0})));
   const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
   const themeReleaseRef = useRef({token: 0, ignoreHoverUntil: 0});
+  const themePressRef = useRef({isPressing: false, rotations: WORD_LAYOUT.map(() => 0)});
   const visuals = runtimeParamsRef.current.visuals;
   const theme = runtimeParamsRef.current.theme;
 
@@ -187,6 +200,18 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
       const releaseIgnoringHover = time < themeReleaseRef.current.ignoreHoverUntil;
       const isThemePressing = !reducedMotion && themeSwitch.isPressing;
+
+      if (isThemePressing && !themePressRef.current.isPressing) {
+        themePressRef.current = {
+          isPressing: true,
+          rotations: createPressRotations(themeSwitch.maxRotation),
+        };
+      } else if (!isThemePressing && themePressRef.current.isPressing) {
+        themePressRef.current = {
+          isPressing: false,
+          rotations: themePressRef.current.rotations,
+        };
+      }
       const previewPoint = magnet.previewMagnet ? {x: magnet.previewX, y: magnet.previewY} : null;
       const activePoint = !reducedMotion && !releaseIgnoringHover ? (pointer.active ? pointer.point : previewPoint) : null;
       const fieldStrength = activePoint ? (pointer.active ? pointer.strength : 1) : 0;
@@ -200,15 +225,17 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         if (!node || !state) return;
 
         const magnetTarget = calculateWordMagnetTarget(activePoint, word, magnet, fieldStrength);
-        const themeTarget = calculateThemeSwitchTarget(word, themeSwitch);
+        const themeTarget = calculateThemeSwitchTarget(word, themeSwitch, themePressRef.current.rotations[index] ?? 0);
         const target = {
           x: magnetTarget.x + themeTarget.x,
           y: magnetTarget.y + themeTarget.y,
           scale: 1 + (magnetTarget.scale - 1) + (themeTarget.scale - 1),
+          rotation: themeTarget.rotation,
         };
         state.x += (target.x - state.x) * smoothing;
         state.y += (target.y - state.y) * smoothing;
         state.scale += (target.scale - state.scale) * smoothing;
+        state.rotation += (target.rotation - state.rotation) * smoothing;
 
         if (fieldStrength > 0 || isThemePressing || !isNearlyResting(state)) {
           allResting = false;
@@ -218,12 +245,13 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
           state.x = 0;
           state.y = 0;
           state.scale = 1;
+          state.rotation = 0;
         }
 
         node.classList.toggle('is-interacting', fieldStrength > 0 || isThemePressing);
         node.setAttribute(
           'transform',
-          `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,
+          `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) rotate(${state.rotation.toFixed(3)}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,
         );
       });
 

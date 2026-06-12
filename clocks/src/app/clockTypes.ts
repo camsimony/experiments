@@ -47,6 +47,7 @@ export type ClockRuntimeParams = {
     releaseToken: number;
     inwardPull: number;
     scaleDip: number;
+    maxRotation: number;
     pressSmoothing: number;
     releaseSmoothing: number;
     releaseIgnoreMs: number;
@@ -125,6 +126,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     releaseToken: 0,
     inwardPull: 18,
     scaleDip: 0.035,
+    maxRotation: 2.2,
     pressSmoothing: 0.24,
     releaseSmoothing: 0.58,
     releaseIgnoreMs: 220,
