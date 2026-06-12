@@ -13,7 +13,7 @@ export const runtimeDialConfig = {
     second: [34, 0, 59, 1],
   },
   Motion: {
-    mode: {type: 'select', options: ['continuous', 'tick-settle'], default: 'continuous'},
+    mode: {type: 'select', options: ['continuous', 'tick-settle'], default: 'tick-settle'},
     settleAmount: [2.4, 0, 12, 0.1],
     settleDurationMs: [210, 80, 600, 10],
   },

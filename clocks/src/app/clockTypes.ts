@@ -89,7 +89,7 @@ export type ClockDefinition = {
 
 export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
   mode: 'live',
-  motionMode: 'continuous',
+  motionMode: 'tick-settle',
   scrubTime: {hour: 10, minute: 8, second: 34},
   theme: {
     pageBg: 'oklch(0.997 0.004 91.445)',
