@@ -26,6 +26,21 @@
   fill: #fffefb;
 }
 
+.reference-clock__word-hover-target {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 320ms cubic-bezier(0.2, 0, 0, 1),
+    filter 320ms cubic-bezier(0.2, 0, 0, 1);
+  cursor: default;
+}
+
+.reference-clock__word-hover-target:hover {
+  transform: translateY(-0.8px) scale(1.035) skewX(var(--word-hover-skew));
+  filter: saturate(1.04);
+  will-change: transform, filter;
+}
+
 .reference-clock__word {
   fill: url("#word-gradient");
   font-family: Futura, "Avenir Next Condensed", "League Spartan", Montserrat, "Arial Narrow", sans-serif;
@@ -38,6 +53,7 @@
   stroke-linejoin: round;
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
+  pointer-events: bounding-box;
 }
 
 .reference-clock__hand line {
@@ -86,6 +102,17 @@
   fill: url("#center-pin-gradient");
   stroke: rgba(255, 255, 255, 0.3);
   stroke-width: 0.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reference-clock__word-hover-target {
+    transition: none;
+  }
+
+  .reference-clock__word-hover-target:hover {
+    transform: none;
+    filter: none;
+  }
 }
 
 @media (max-width: 640px) {

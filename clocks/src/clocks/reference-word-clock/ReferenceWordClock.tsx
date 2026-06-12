@@ -7,6 +7,15 @@ import './styles.css';
 
 type ClockCssVars = CSSProperties & Record<'--word-color' | '--second-hand-color' | '--hour-hand-width' | '--minute-hand-width' | '--second-hand-width' | '--center-pin-radius' | '--artboard-scale', string>;
 
+type WordHoverVars = CSSProperties & Record<'--word-hover-skew', string>;
+
+function getWordHoverSkew(x: number, y: number) {
+  const xRatio = (x - VIEWBOX.centerX) / VIEWBOX.centerX;
+  const yRatio = (y - VIEWBOX.centerY) / VIEWBOX.centerY;
+  const skew = Math.abs(xRatio) > 0.08 ? xRatio * 1.8 : yRatio * -0.8;
+  return `${Math.max(-1.8, Math.min(1.8, skew)).toFixed(2)}deg`;
+}
+
 export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps) {
   const hourHandRef = useRef<SVGGElement>(null);
   const minuteHandRef = useRef<SVGGElement>(null);
@@ -72,19 +81,25 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
 
         <g className="reference-clock__words" aria-hidden="true">
-          {WORD_LAYOUT.map((word) => (
-            <text
-              key={word.label}
-              className="reference-clock__word"
-              x={word.x}
-              y={word.y}
-              fontSize={word.fontSize}
-              textAnchor={word.anchor ?? 'middle'}
-              transform={`rotate(${word.rotation} ${word.x} ${word.y})`}
-            >
-              {word.label}
-            </text>
-          ))}
+          {WORD_LAYOUT.map((word) => {
+            const hoverStyle: WordHoverVars = {'--word-hover-skew': getWordHoverSkew(word.x, word.y)};
+
+            return (
+              <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
+                <g className="reference-clock__word-hover-target" style={hoverStyle}>
+                  <text
+                    className="reference-clock__word"
+                    x={word.x}
+                    y={word.y}
+                    fontSize={word.fontSize}
+                    textAnchor={word.anchor ?? 'middle'}
+                  >
+                    {word.label}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
         </g>
 
         <g className="reference-clock__hands" aria-hidden="true">
