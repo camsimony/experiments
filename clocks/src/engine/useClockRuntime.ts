@@ -29,11 +29,8 @@ export function useClockRuntime({hands, runtimeParamsRef, reducedMotion, centerX
         ? settledSecondAngle(Math.floor(angles.second / 6) * 6, now.getMilliseconds(), params.motion.settleAmount, params.motion.settleDurationMs)
         : angles.second;
 
-      const minuteTransform = angleToTransform(angles.minute, centerX, centerY);
-
       hands.hour.current?.setAttribute('transform', angleToTransform(angles.hour, centerX, centerY));
-      hands.minute.current?.setAttribute('transform', minuteTransform);
-      hands.minuteBackdrop?.current?.setAttribute('transform', minuteTransform);
+      hands.minute.current?.setAttribute('transform', angleToTransform(angles.minute, centerX, centerY));
       hands.second.current?.setAttribute('transform', angleToTransform(secondAngle, centerX, centerY));
 
       frame = window.requestAnimationFrame(render);

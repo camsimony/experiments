@@ -68,30 +68,6 @@
   pointer-events: bounding-box;
 }
 
-.reference-clock__minute-backdrop {
-  pointer-events: none;
-}
-
-.reference-clock__minute-backdrop-veil {
-  fill: var(--paper-color);
-  opacity: 0.52;
-}
-
-.reference-clock__minute-backdrop-words {
-  filter: url("#minute-hand-backdrop-blur");
-  opacity: 0.74;
-}
-
-.reference-clock__minute-backdrop-word {
-  fill: url("#word-gradient");
-  font-family: Futura, "Avenir Next Condensed", "League Spartan", Montserrat, "Arial Narrow", sans-serif;
-  font-weight: 500;
-  letter-spacing: -0.035em;
-  dominant-baseline: middle;
-  -webkit-font-smoothing: antialiased;
-  font-synthesis: none;
-}
-
 .reference-clock__hand line {
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;

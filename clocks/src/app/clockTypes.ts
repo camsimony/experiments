@@ -71,7 +71,6 @@ export type ClockHandRefs = {
   hour: RefObject<SVGGElement | null>;
   minute: RefObject<SVGGElement | null>;
   second: RefObject<SVGGElement | null>;
-  minuteBackdrop?: RefObject<SVGElement | null>;
 };
 
 export type ClockProps = {
