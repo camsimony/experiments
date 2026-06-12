@@ -132,7 +132,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     pressSmoothing: 0.39,
     releaseSmoothing: 0.25,
     releaseIgnoreMs: 520,
-    transitionDurationMs: 220,
+    transitionDurationMs: 80,
     transitionEaseIn: 0.26,
   },
   wordMagnet: {

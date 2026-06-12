@@ -42,7 +42,7 @@ export const runtimeDialConfig = {
 
 export const themeDialConfig = {
   Active: {
-    theme: {type: 'select', options: themeOptions, default: '3'},
+    theme: {type: 'select', options: themeOptions, default: '0'},
   },
   SwitchMotion: {
     inwardPull: [18, 0, 54, 1],
@@ -51,7 +51,7 @@ export const themeDialConfig = {
     pressSmoothing: [0.39, 0.05, 0.9, 0.01],
     releaseSmoothing: [0.25, 0.08, 0.95, 0.01],
     releaseIgnoreMs: [520, 80, 520, 10],
-    transitionDurationMs: [220, 0, 1200, 10],
+    transitionDurationMs: [80, 0, 1200, 10],
     transitionEaseIn: [0.26, 0, 0.9, 0.01],
   },
   Reference: {
