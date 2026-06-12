@@ -97,6 +97,16 @@ function isDialKitEventTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('.dialkit-root'));
 }
 
+function emitClockPointerEvent(event: PointerEvent<HTMLElement>, active: boolean) {
+  window.dispatchEvent(new CustomEvent('reference-clock:pointer', {
+    detail: {
+      active,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    },
+  }));
+}
+
 function toRuntimeParams(
   dial: RuntimeDialValues,
   theme: ReferenceClockThemePreset,
@@ -235,7 +245,13 @@ export default function App() {
     } catch {
       // Pointer capture can fail for synthetic events; the interaction still works without it.
     }
+    emitClockPointerEvent(event, true);
     setThemePress((current) => ({...current, isPressing: true}));
+  };
+
+  const updateThemePressPointer = (event: PointerEvent<HTMLElement>) => {
+    if (!themePressingRef.current) return;
+    emitClockPointerEvent(event, true);
   };
 
   const releaseThemePress = (event: PointerEvent<HTMLElement>) => {
@@ -246,6 +262,7 @@ export default function App() {
     } catch {
       // Matching the capture guard above.
     }
+    emitClockPointerEvent(event, false);
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     void triggerHaptic('selection');
     playThemeSwitchSound(soundDial);
@@ -266,6 +283,7 @@ export default function App() {
     } catch {
       // Matching the capture guard above.
     }
+    emitClockPointerEvent(event, false);
     setThemePress((current) => ({...current, isPressing: false}));
   };
 
@@ -274,6 +292,7 @@ export default function App() {
       className="clock-app"
       style={style}
       onPointerDown={beginThemePress}
+      onPointerMove={updateThemePressPointer}
       onPointerUp={releaseThemePress}
       onPointerCancel={cancelThemePress}
     >

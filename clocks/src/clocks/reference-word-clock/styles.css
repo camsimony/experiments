@@ -31,6 +31,7 @@
   transform-origin: center;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
 }
 
 .reference-clock__magnet-field {
@@ -38,6 +39,7 @@
   inset: -96px;
   z-index: 2;
   background: transparent;
+  touch-action: none;
 }
 
 .reference-clock__svg {

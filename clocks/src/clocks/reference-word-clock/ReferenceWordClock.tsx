@@ -67,6 +67,12 @@ type WordMagnetSettings = {
   returnSmoothing: number;
 };
 
+type ReferenceClockPointerEvent = CustomEvent<{
+  active: boolean;
+  clientX: number;
+  clientY: number;
+}>;
+
 const WORD_RING = {
   outerRx: 258,
   outerRy: 204,
@@ -278,16 +284,34 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     return () => window.cancelAnimationFrame(frame);
   }, [reducedMotion]);
 
-  const updateWordRingMagnetism = (event: PointerEvent<HTMLDivElement>) => {
-    const point = getSvgPoint(svgRef.current, event.clientX, event.clientY);
+  const updateWordRingMagnetismFromClientPoint = (clientX: number, clientY: number) => {
+    const point = getSvgPoint(svgRef.current, clientX, clientY);
     if (!point) return;
     const magnet = runtimeParamsRef.current.wordMagnet;
     wordPointerRef.current = {active: true, point: {x: point.x, y: point.y}, strength: calculateRingActivation(point, magnet)};
   };
 
+  const updateWordRingMagnetism = (event: PointerEvent<HTMLDivElement>) => {
+    updateWordRingMagnetismFromClientPoint(event.clientX, event.clientY);
+  };
+
   const resetWordRingMagnetism = () => {
     wordPointerRef.current = {active: false, point: null, strength: 0};
   };
+
+  useEffect(() => {
+    const updateFromPagePointer = (event: Event) => {
+      const {active, clientX, clientY} = (event as ReferenceClockPointerEvent).detail;
+      if (!active) {
+        resetWordRingMagnetism();
+        return;
+      }
+      updateWordRingMagnetismFromClientPoint(clientX, clientY);
+    };
+
+    window.addEventListener('reference-clock:pointer', updateFromPagePointer);
+    return () => window.removeEventListener('reference-clock:pointer', updateFromPagePointer);
+  }, []);
 
   const style: ClockCssVars = {
     '--paper-color': theme.paperColor,
