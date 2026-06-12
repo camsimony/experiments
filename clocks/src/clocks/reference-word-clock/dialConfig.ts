@@ -46,7 +46,7 @@ export const themeDialConfig = {
   SwitchMotion: {
     inwardPull: [18, 0, 54, 1],
     scaleDip: [0.035, 0, 0.12, 0.005],
-    maxRotation: [2.2, 0, 8, 0.1],
+    maxRotation: [5.5, 0, 14, 0.1],
     pressSmoothing: [0.24, 0.05, 0.9, 0.01],
     releaseSmoothing: [0.58, 0.08, 0.95, 0.01],
     releaseIgnoreMs: [220, 80, 520, 10],

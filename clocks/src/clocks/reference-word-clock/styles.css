@@ -47,7 +47,6 @@
 
 .reference-clock__paper {
   fill: var(--paper-color);
-  transition: fill 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .reference-clock__word-hover-target {
