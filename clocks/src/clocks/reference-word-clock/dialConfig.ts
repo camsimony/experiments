@@ -23,6 +23,9 @@ export const runtimeDialConfig = {
     artboardScale: [1, 0.7, 1.25, 0.01],
   },
   WordMagnet: {
+    previewMagnet: false,
+    previewX: [438, 0, 524, 1],
+    previewY: [218, 0, 420, 1],
     maxPull: [19, 0, 42, 0.5],
     basePull: [1.5, 0, 8, 0.1],
     falloffDistance: [190, 80, 340, 5],
@@ -55,6 +58,9 @@ export type RuntimeDialValues = {
     artboardScale: number;
   };
   WordMagnet: {
+    previewMagnet: boolean;
+    previewX: number;
+    previewY: number;
     maxPull: number;
     basePull: number;
     falloffDistance: number;

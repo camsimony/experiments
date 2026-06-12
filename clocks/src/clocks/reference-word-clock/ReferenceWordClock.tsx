@@ -16,6 +16,9 @@ type WordMagnetState = {
 type WordMagnetTarget = WordMagnetState;
 
 type WordMagnetSettings = {
+  previewMagnet: boolean;
+  previewX: number;
+  previewY: number;
   maxPull: number;
   basePull: number;
   falloffDistance: number;
@@ -105,8 +108,9 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
       const delta = Math.min(40, time - previousTime);
       previousTime = time;
       const pointer = wordPointerRef.current;
-      const activePoint = !reducedMotion && pointer.active ? pointer.point : null;
       const magnet = runtimeParamsRef.current.wordMagnet;
+      const previewPoint = magnet.previewMagnet ? {x: magnet.previewX, y: magnet.previewY} : null;
+      const activePoint = !reducedMotion ? (pointer.active ? pointer.point : previewPoint) : null;
       const smoothingBase = activePoint ? magnet.followSmoothing : magnet.returnSmoothing;
       const smoothing = 1 - Math.pow(1 - smoothingBase, delta / 16.67);
       let allResting = !activePoint;

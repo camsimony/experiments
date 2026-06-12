@@ -35,6 +35,9 @@ function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
       settleDurationMs: dial.Motion.settleDurationMs,
     },
     wordMagnet: {
+      previewMagnet: dial.WordMagnet.previewMagnet,
+      previewX: dial.WordMagnet.previewX,
+      previewY: dial.WordMagnet.previewY,
       maxPull: dial.WordMagnet.maxPull,
       basePull: dial.WordMagnet.basePull,
       falloffDistance: dial.WordMagnet.falloffDistance,

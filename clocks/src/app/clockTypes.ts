@@ -23,6 +23,9 @@ export type ClockRuntimeParams = {
     settleDurationMs: number;
   };
   wordMagnet: {
+    previewMagnet: boolean;
+    previewX: number;
+    previewY: number;
     maxPull: number;
     basePull: number;
     falloffDistance: number;
@@ -69,6 +72,9 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     settleDurationMs: 210,
   },
   wordMagnet: {
+    previewMagnet: false,
+    previewX: 438,
+    previewY: 218,
     maxPull: 19,
     basePull: 1.5,
     falloffDistance: 190,
