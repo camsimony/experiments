@@ -36,6 +36,13 @@ textarea {
   padding: clamp(16px, 4vw, 48px);
   background-color: var(--clock-app-bg, oklch(0.997 0.004 91.445));
   transition: background-color var(--theme-transition-duration, 0ms) var(--theme-transition-ease, cubic-bezier(0.26, 0, 0.2, 1));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dialkit-root {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 .clock-app__stage {

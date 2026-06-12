@@ -27,6 +27,8 @@
   aspect-ratio: 524 / 420;
   transform: scale(var(--artboard-scale));
   transform-origin: center;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .reference-clock__magnet-field {
@@ -42,6 +44,8 @@
   height: 100%;
   overflow: visible;
   shape-rendering: geometricPrecision;
+  user-select: none;
+  -webkit-user-select: none;
   text-rendering: geometricPrecision;
 }
 
@@ -80,6 +84,8 @@
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
   pointer-events: bounding-box;
+  user-select: none;
+  -webkit-user-select: none;
   transition-property: fill, stroke;
 }
 
