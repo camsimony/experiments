@@ -41,15 +41,15 @@ export const runtimeDialConfig = {
 
 export const themeDialConfig = {
   Active: {
-    theme: {type: 'select', options: themeOptions, default: '0'},
+    theme: {type: 'select', options: themeOptions, default: '3'},
   },
   SwitchMotion: {
     inwardPull: [18, 0, 54, 1],
     scaleDip: [0.035, 0, 0.12, 0.005],
     maxRotation: [5.5, 0, 14, 0.1],
-    pressSmoothing: [0.24, 0.05, 0.9, 0.01],
-    releaseSmoothing: [0.58, 0.08, 0.95, 0.01],
-    releaseIgnoreMs: [220, 80, 520, 10],
+    pressSmoothing: [0.39, 0.05, 0.9, 0.01],
+    releaseSmoothing: [0.25, 0.08, 0.95, 0.01],
+    releaseIgnoreMs: [520, 80, 520, 10],
   },
   Reference: {
     pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].pageBg},

@@ -127,9 +127,9 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     inwardPull: 18,
     scaleDip: 0.035,
     maxRotation: 5.5,
-    pressSmoothing: 0.24,
-    releaseSmoothing: 0.58,
-    releaseIgnoreMs: 220,
+    pressSmoothing: 0.39,
+    releaseSmoothing: 0.25,
+    releaseIgnoreMs: 520,
   },
   wordMagnet: {
     previewMagnet: false,
