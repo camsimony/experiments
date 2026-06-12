@@ -51,6 +51,8 @@ export const themeDialConfig = {
     pressSmoothing: [0.39, 0.05, 0.9, 0.01],
     releaseSmoothing: [0.25, 0.08, 0.95, 0.01],
     releaseIgnoreMs: [520, 80, 520, 10],
+    transitionDurationMs: [220, 0, 1200, 10],
+    transitionEaseIn: [0.26, 0, 0.9, 0.01],
   },
   Reference: {
     pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[0].pageBg)},
@@ -163,6 +165,8 @@ export type ThemeDialValues = {
     pressSmoothing: number;
     releaseSmoothing: number;
     releaseIgnoreMs: number;
+    transitionDurationMs: number;
+    transitionEaseIn: number;
   };
   Reference: ThemeColorDialValues;
   Blueprint: ThemeColorDialValues;

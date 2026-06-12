@@ -34,7 +34,8 @@ textarea {
   display: grid;
   place-items: center;
   padding: clamp(16px, 4vw, 48px);
-  background: var(--clock-app-bg, oklch(0.997 0.004 91.445));
+  background-color: var(--clock-app-bg, oklch(0.997 0.004 91.445));
+  transition: background-color var(--theme-transition-duration, 0ms) var(--theme-transition-ease, cubic-bezier(0.26, 0, 0.2, 1));
 }
 
 .clock-app__stage {

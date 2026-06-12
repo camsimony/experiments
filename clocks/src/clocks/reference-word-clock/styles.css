@@ -45,8 +45,22 @@
   text-rendering: geometricPrecision;
 }
 
+.reference-clock__paper,
+.reference-clock__word,
+.reference-clock__hand line,
+.reference-clock__center circle,
+.reference-clock stop {
+  transition-duration: var(--theme-transition-duration, 0ms);
+  transition-timing-function: var(--theme-transition-ease, cubic-bezier(0.26, 0, 0.2, 1));
+}
+
+.reference-clock stop {
+  transition-property: stop-color, stop-opacity;
+}
+
 .reference-clock__paper {
   fill: var(--paper-color);
+  transition-property: fill;
 }
 
 .reference-clock__word-hover-target {
@@ -66,11 +80,13 @@
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
   pointer-events: bounding-box;
+  transition-property: fill, stroke;
 }
 
 .reference-clock__hand line {
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
+  transition-property: stroke, stroke-opacity;
 }
 
 .reference-clock__hand--minute .reference-clock__hand-soft {
@@ -114,6 +130,7 @@
   fill: url("#center-pin-gradient");
   stroke: var(--center-pin-stroke-color);
   stroke-width: 0.5px;
+  transition-property: fill, stroke;
 }
 
 @media (prefers-reduced-motion: reduce) {

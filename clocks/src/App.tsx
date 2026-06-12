@@ -11,7 +11,15 @@ import {runtimeDialConfig, soundDialConfig, themeDialConfig, type RuntimeDialVal
 import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
 import './styles/global.css';
 
-type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg', string>;
+type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg' | '--theme-transition-duration' | '--theme-transition-ease', string>;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildThemeTransitionEase(easeIn: number) {
+  return `cubic-bezier(${clamp(easeIn, 0, 0.9).toFixed(2)}, 0, 0.2, 1)`;
+}
 
 function clampThemeIndex(value: string) {
   const parsed = Number.parseInt(value, 10);
@@ -123,6 +131,8 @@ function toRuntimeParams(
       pressSmoothing: switchMotion.pressSmoothing,
       releaseSmoothing: switchMotion.releaseSmoothing,
       releaseIgnoreMs: switchMotion.releaseIgnoreMs,
+      transitionDurationMs: switchMotion.transitionDurationMs,
+      transitionEaseIn: switchMotion.transitionEaseIn,
     },
     wordMagnet: {
       previewMagnet: dial.WordMagnet.previewMagnet,
@@ -206,7 +216,11 @@ export default function App() {
 
   const activeClock = getClockById(activeClockId);
   const ActiveClock = activeClock.Component;
-  const style: ClockAppCssVars = {'--clock-app-bg': runtimeParamsRef.current.theme.pageBg};
+  const style: ClockAppCssVars = {
+    '--clock-app-bg': runtimeParamsRef.current.theme.pageBg,
+    '--theme-transition-duration': reducedMotion ? '0ms' : `${runtimeParamsRef.current.themeSwitch.transitionDurationMs}ms`,
+    '--theme-transition-ease': buildThemeTransitionEase(runtimeParamsRef.current.themeSwitch.transitionEaseIn),
+  };
 
   const beginThemePress = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0 || isDialKitEventTarget(event.target)) return;

@@ -23,6 +23,8 @@ type ClockCssVars = CSSProperties & Record<
   | '--center-pin-color'
   | '--center-pin-end-color'
   | '--center-pin-stroke-color'
+  | '--theme-transition-duration'
+  | '--theme-transition-ease'
   | '--hour-hand-width'
   | '--minute-hand-width'
   | '--second-hand-width'
@@ -74,6 +76,10 @@ const WORD_RING = {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function buildThemeTransitionEase(easeIn: number) {
+  return `cubic-bezier(${clamp(easeIn, 0, 0.9).toFixed(2)}, 0, 0.2, 1)`;
 }
 
 function smoothstep(value: number) {
@@ -165,6 +171,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const themePressRef = useRef({isPressing: false, rotations: WORD_LAYOUT.map(() => 0)});
   const visuals = runtimeParamsRef.current.visuals;
   const theme = runtimeParamsRef.current.theme;
+  const themeSwitch = runtimeParamsRef.current.themeSwitch;
 
   useClockRuntime({
     hands: {
@@ -300,6 +307,8 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     '--center-pin-color': theme.centerPinColor,
     '--center-pin-end-color': theme.centerPinEndColor,
     '--center-pin-stroke-color': theme.centerPinStrokeColor,
+    '--theme-transition-duration': reducedMotion ? '0ms' : `${themeSwitch.transitionDurationMs}ms`,
+    '--theme-transition-ease': buildThemeTransitionEase(themeSwitch.transitionEaseIn),
     '--hour-hand-width': `${visuals.hourHandWidth}`,
     '--minute-hand-width': `${visuals.minuteHandWidth}`,
     '--second-hand-width': `${visuals.secondHandWidth}`,

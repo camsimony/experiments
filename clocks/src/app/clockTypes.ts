@@ -51,6 +51,8 @@ export type ClockRuntimeParams = {
     pressSmoothing: number;
     releaseSmoothing: number;
     releaseIgnoreMs: number;
+    transitionDurationMs: number;
+    transitionEaseIn: number;
   };
   wordMagnet: {
     previewMagnet: boolean;
@@ -130,6 +132,8 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     pressSmoothing: 0.39,
     releaseSmoothing: 0.25,
     releaseIgnoreMs: 520,
+    transitionDurationMs: 220,
+    transitionEaseIn: 0.26,
   },
   wordMagnet: {
     previewMagnet: false,
