@@ -43,6 +43,13 @@ export const themeDialConfig = {
   Active: {
     theme: {type: 'select', options: themeOptions, default: '0'},
   },
+  SwitchMotion: {
+    inwardPull: [18, 0, 54, 1],
+    scaleDip: [0.035, 0, 0.12, 0.005],
+    pressSmoothing: [0.24, 0.05, 0.9, 0.01],
+    releaseSmoothing: [0.58, 0.08, 0.95, 0.01],
+    releaseIgnoreMs: [220, 80, 520, 10],
+  },
   Reference: {
     pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].pageBg},
     wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].wordColor},
@@ -97,6 +104,13 @@ type ThemeColorDialValues = {
 export type ThemeDialValues = {
   Active: {
     theme: string;
+  };
+  SwitchMotion: {
+    inwardPull: number;
+    scaleDip: number;
+    pressSmoothing: number;
+    releaseSmoothing: number;
+    releaseIgnoreMs: number;
   };
   Reference: ThemeColorDialValues;
   Blueprint: ThemeColorDialValues;

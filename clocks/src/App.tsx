@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent} from 'react';
+import {useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent} from 'react';
 import {DialRoot, DialStore, useDialKit} from 'dialkit';
 
 import {clockRegistry, getClockById} from './app/clockRegistry';
@@ -33,7 +33,16 @@ function setThemeDialIndex(index: number) {
   DialStore.updateValue(panel.id, 'Active.theme', String(index));
 }
 
-function toRuntimeParams(dial: RuntimeDialValues, theme: ReferenceClockThemePreset): ClockRuntimeParams {
+function isDialKitEventTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('.dialkit-root'));
+}
+
+function toRuntimeParams(
+  dial: RuntimeDialValues,
+  theme: ReferenceClockThemePreset,
+  themePress: {isPressing: boolean; releaseToken: number},
+  switchMotion: ThemeDialValues['SwitchMotion'],
+): ClockRuntimeParams {
   const mode = dial.Time.mode === 'scrub' ? 'scrub' : 'live';
   const motionMode: MotionMode = dial.Motion.mode === 'tick-settle' ? 'tick-settle' : 'continuous';
 
@@ -58,6 +67,15 @@ function toRuntimeParams(dial: RuntimeDialValues, theme: ReferenceClockThemePres
       settleAmount: dial.Motion.settleAmount,
       settleDurationMs: dial.Motion.settleDurationMs,
     },
+    themeSwitch: {
+      isPressing: themePress.isPressing,
+      releaseToken: themePress.releaseToken,
+      inwardPull: switchMotion.inwardPull,
+      scaleDip: switchMotion.scaleDip,
+      pressSmoothing: switchMotion.pressSmoothing,
+      releaseSmoothing: switchMotion.releaseSmoothing,
+      releaseIgnoreMs: switchMotion.releaseIgnoreMs,
+    },
     wordMagnet: {
       previewMagnet: dial.WordMagnet.previewMagnet,
       previewX: dial.WordMagnet.previewX,
@@ -78,6 +96,8 @@ export default function App() {
   const availableClockIds = useMemo(() => clockRegistry.map((clock) => clock.id), []);
   const [activeClockId, setActiveClockId] = useState(() => getInitialClockId(availableClockIds));
   const [reducedMotion, setReducedMotion] = useState(() => shouldReduceMotion());
+  const [themePress, setThemePress] = useState({isPressing: false, releaseToken: 0});
+  const themePressingRef = useRef(false);
   const runtimeParamsRef = useRef<ClockRuntimeParams>(DEFAULT_RUNTIME_PARAMS);
   const dial = useDialKit('Clock runtime', runtimeDialConfig, {
     shortcuts: {
@@ -92,7 +112,7 @@ export default function App() {
   const activeThemeIndex = clampThemeIndex(themeDial.Active.theme);
   const activeTheme = themePresets[activeThemeIndex];
 
-  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme);
+  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
 
   useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));
@@ -114,13 +134,34 @@ export default function App() {
   const ActiveClock = activeClock.Component;
   const style: ClockAppCssVars = {'--clock-app-bg': runtimeParamsRef.current.theme.pageBg};
 
-  const cycleTheme = (event: MouseEvent<HTMLElement>) => {
-    if (event.target instanceof Element && event.target.closest('.dialkit-root')) return;
+  const beginThemePress = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || isDialKitEventTarget(event.target)) return;
+    themePressingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setThemePress((current) => ({...current, isPressing: true}));
+  };
+
+  const releaseThemePress = () => {
+    if (!themePressingRef.current) return;
+    themePressingRef.current = false;
+    setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 
+  const cancelThemePress = () => {
+    if (!themePressingRef.current) return;
+    themePressingRef.current = false;
+    setThemePress((current) => ({...current, isPressing: false}));
+  };
+
   return (
-    <main className="clock-app" style={style} onClick={cycleTheme}>
+    <main
+      className="clock-app"
+      style={style}
+      onPointerDown={beginThemePress}
+      onPointerUp={releaseThemePress}
+      onPointerCancel={cancelThemePress}
+    >
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>

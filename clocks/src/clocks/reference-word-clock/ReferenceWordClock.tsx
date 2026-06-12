@@ -39,6 +39,16 @@ type WordMagnetState = {
 
 type WordMagnetTarget = WordMagnetState;
 
+type ThemeSwitchSettings = {
+  isPressing: boolean;
+  releaseToken: number;
+  inwardPull: number;
+  scaleDip: number;
+  pressSmoothing: number;
+  releaseSmoothing: number;
+  releaseIgnoreMs: number;
+};
+
 type WordMagnetSettings = {
   previewMagnet: boolean;
   previewX: number;
@@ -94,6 +104,21 @@ function calculateRingActivation(point: {x: number; y: number}, settings: WordMa
   return outerStrength * innerStrength;
 }
 
+function calculateThemeSwitchTarget(word: {x: number; y: number}, settings: ThemeSwitchSettings): WordMagnetTarget {
+  if (!settings.isPressing) return {x: 0, y: 0, scale: 1};
+
+  const dx = VIEWBOX.centerX - word.x;
+  const dy = VIEWBOX.centerY - word.y;
+  const distance = Math.max(Math.hypot(dx, dy), 1);
+  const pull = Math.min(settings.inwardPull, distance * 0.22);
+
+  return {
+    x: (dx / distance) * pull,
+    y: (dy / distance) * pull,
+    scale: 1 - settings.scaleDip,
+  };
+}
+
 function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}, settings: WordMagnetSettings, fieldStrength: number): WordMagnetTarget {
   if (!point || fieldStrength <= 0) return {x: 0, y: 0, scale: 1};
 
@@ -124,6 +149,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const wordRefs = useRef<Array<SVGGElement | null>>([]);
   const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1})));
   const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
+  const themeReleaseRef = useRef({token: 0, ignoreHoverUntil: 0});
   const visuals = runtimeParamsRef.current.visuals;
   const theme = runtimeParamsRef.current.theme;
 
@@ -146,36 +172,55 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     const animateWords = (time: number) => {
       const delta = Math.min(40, time - previousTime);
       previousTime = time;
-      const pointer = wordPointerRef.current;
+      let pointer = wordPointerRef.current;
       const magnet = runtimeParamsRef.current.wordMagnet;
+      const themeSwitch = runtimeParamsRef.current.themeSwitch;
+
+      if (themeReleaseRef.current.token !== themeSwitch.releaseToken) {
+        themeReleaseRef.current = {
+          token: themeSwitch.releaseToken,
+          ignoreHoverUntil: time + themeSwitch.releaseIgnoreMs,
+        };
+        wordPointerRef.current = {active: false, point: null, strength: 0};
+        pointer = wordPointerRef.current;
+      }
+
+      const releaseIgnoringHover = time < themeReleaseRef.current.ignoreHoverUntil;
+      const isThemePressing = !reducedMotion && themeSwitch.isPressing;
       const previewPoint = magnet.previewMagnet ? {x: magnet.previewX, y: magnet.previewY} : null;
-      const activePoint = !reducedMotion ? (pointer.active ? pointer.point : previewPoint) : null;
+      const activePoint = !reducedMotion && !releaseIgnoringHover ? (pointer.active ? pointer.point : previewPoint) : null;
       const fieldStrength = activePoint ? (pointer.active ? pointer.strength : 1) : 0;
-      const smoothingBase = fieldStrength > 0 ? magnet.followSmoothing : magnet.returnSmoothing;
+      const smoothingBase = isThemePressing ? themeSwitch.pressSmoothing : releaseIgnoringHover ? themeSwitch.releaseSmoothing : fieldStrength > 0 ? magnet.followSmoothing : magnet.returnSmoothing;
       const smoothing = 1 - Math.pow(1 - smoothingBase, delta / 16.67);
-      let allResting = fieldStrength <= 0;
+      let allResting = fieldStrength <= 0 && !isThemePressing;
 
       WORD_LAYOUT.forEach((word, index) => {
         const node = wordRefs.current[index];
         const state = wordStatesRef.current[index];
         if (!node || !state) return;
 
-        const target = calculateWordMagnetTarget(activePoint, word, magnet, fieldStrength);
+        const magnetTarget = calculateWordMagnetTarget(activePoint, word, magnet, fieldStrength);
+        const themeTarget = calculateThemeSwitchTarget(word, themeSwitch);
+        const target = {
+          x: magnetTarget.x + themeTarget.x,
+          y: magnetTarget.y + themeTarget.y,
+          scale: 1 + (magnetTarget.scale - 1) + (themeTarget.scale - 1),
+        };
         state.x += (target.x - state.x) * smoothing;
         state.y += (target.y - state.y) * smoothing;
         state.scale += (target.scale - state.scale) * smoothing;
 
-        if (fieldStrength > 0 || !isNearlyResting(state)) {
+        if (fieldStrength > 0 || isThemePressing || !isNearlyResting(state)) {
           allResting = false;
         }
 
-        if (!activePoint && isNearlyResting(state)) {
+        if (!activePoint && !isThemePressing && isNearlyResting(state)) {
           state.x = 0;
           state.y = 0;
           state.scale = 1;
         }
 
-        node.classList.toggle('is-interacting', fieldStrength > 0);
+        node.classList.toggle('is-interacting', fieldStrength > 0 || isThemePressing);
         node.setAttribute(
           'transform',
           `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,

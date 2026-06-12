@@ -42,6 +42,15 @@ export type ClockRuntimeParams = {
     settleAmount: number;
     settleDurationMs: number;
   };
+  themeSwitch: {
+    isPressing: boolean;
+    releaseToken: number;
+    inwardPull: number;
+    scaleDip: number;
+    pressSmoothing: number;
+    releaseSmoothing: number;
+    releaseIgnoreMs: number;
+  };
   wordMagnet: {
     previewMagnet: boolean;
     previewX: number;
@@ -110,6 +119,15 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
   motion: {
     settleAmount: 2.4,
     settleDurationMs: 210,
+  },
+  themeSwitch: {
+    isPressing: false,
+    releaseToken: 0,
+    inwardPull: 18,
+    scaleDip: 0.035,
+    pressSmoothing: 0.24,
+    releaseSmoothing: 0.58,
+    releaseIgnoreMs: 220,
   },
   wordMagnet: {
     previewMagnet: false,
