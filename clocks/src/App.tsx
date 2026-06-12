@@ -90,9 +90,6 @@ export default function App() {
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>
-      <p className="clock-app__caption">
-        {activeClock.name} · {runtimeParamsRef.current.mode === 'live' ? 'live time' : 'scrubbed time'} · {runtimeParamsRef.current.motionMode}
-      </p>
       <DialRoot position="bottom-right" defaultOpen={false} theme="light" productionEnabled />
     </main>
   );
