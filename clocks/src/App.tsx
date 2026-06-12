@@ -5,6 +5,7 @@ import {useWebHaptics} from 'web-haptics/react';
 import {clockRegistry, getClockById} from './app/clockRegistry';
 import {DEFAULT_RUNTIME_PARAMS, type ClockRuntimeParams, type MotionMode} from './app/clockTypes';
 import {getInitialClockId} from './app/galleryState';
+import {preloadThemeSwitchSound, playThemeSwitchSound} from './engine/themeSwitchSound';
 import {shouldReduceMotion} from './engine/time';
 import {runtimeDialConfig, themeDialConfig, type RuntimeDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
 import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
@@ -118,6 +119,10 @@ export default function App() {
   runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
 
   useEffect(() => {
+    preloadThemeSwitchSound();
+  }, []);
+
+  useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -158,6 +163,7 @@ export default function App() {
     }
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     void triggerHaptic('selection');
+    playThemeSwitchSound();
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 
