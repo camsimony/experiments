@@ -119,6 +119,17 @@ function getOrCreateThemeColorMeta() {
   return meta;
 }
 
+function getSafariChromeColor(background: string) {
+  const fallbackDarkChrome = '#351a17';
+  const hex = toHexColorInput(background);
+  const r = Number.parseInt(hex.slice(1, 3), 16);
+  const g = Number.parseInt(hex.slice(3, 5), 16);
+  const b = Number.parseInt(hex.slice(5, 7), 16);
+  const perceivedLightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+  return perceivedLightness > 150 ? fallbackDarkChrome : hex;
+}
+
 function toRuntimeParams(
   dial: RuntimeDialValues,
   theme: ReferenceClockThemePreset,
@@ -205,7 +216,7 @@ export default function App() {
   const appBackground = runtimeParamsRef.current.theme.pageBg;
 
   useEffect(() => {
-    const browserChromeColor = toHexColorInput(appBackground);
+    const browserChromeColor = getSafariChromeColor(appBackground);
     document.documentElement.style.setProperty('--clock-document-bg', appBackground);
     document.documentElement.style.backgroundColor = appBackground;
     document.body.style.backgroundColor = appBackground;
