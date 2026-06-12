@@ -24,6 +24,7 @@ type WordMagnetSettings = {
   falloffDistance: number;
   maxScaleLift: number;
   cursorCapture: number;
+  activationFeather: number;
   followSmoothing: number;
   returnSmoothing: number;
 };
@@ -35,32 +36,42 @@ const WORD_RING = {
   innerRy: 82,
 };
 
-const WORD_RING_PATH = [
-  `M ${VIEWBOX.centerX - WORD_RING.outerRx} ${VIEWBOX.centerY}`,
-  `a ${WORD_RING.outerRx} ${WORD_RING.outerRy} 0 1 0 ${WORD_RING.outerRx * 2} 0`,
-  `a ${WORD_RING.outerRx} ${WORD_RING.outerRy} 0 1 0 ${-WORD_RING.outerRx * 2} 0`,
-  `M ${VIEWBOX.centerX - WORD_RING.innerRx} ${VIEWBOX.centerY}`,
-  `a ${WORD_RING.innerRx} ${WORD_RING.innerRy} 0 1 0 ${WORD_RING.innerRx * 2} 0`,
-  `a ${WORD_RING.innerRx} ${WORD_RING.innerRy} 0 1 0 ${-WORD_RING.innerRx * 2} 0`,
-].join(' ');
-
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function getSvgPoint(event: PointerEvent<SVGPathElement>) {
-  const svg = event.currentTarget.ownerSVGElement;
+function smoothstep(value: number) {
+  const clamped = clamp(value, 0, 1);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+function getSvgPoint(svg: SVGSVGElement | null, clientX: number, clientY: number) {
   const matrix = svg?.getScreenCTM()?.inverse();
   if (!svg || !matrix) return null;
 
   const point = svg.createSVGPoint();
-  point.x = event.clientX;
-  point.y = event.clientY;
+  point.x = clientX;
+  point.y = clientY;
   return point.matrixTransform(matrix);
 }
 
-function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}, settings: WordMagnetSettings): WordMagnetTarget {
-  if (!point) return {x: 0, y: 0, scale: 1};
+function ellipseDistanceFromBoundary(point: {x: number; y: number}, rx: number, ry: number) {
+  const normalizedRadius = Math.hypot((point.x - VIEWBOX.centerX) / rx, (point.y - VIEWBOX.centerY) / ry);
+  return (normalizedRadius - 1) * Math.sqrt(rx * ry);
+}
+
+function calculateRingActivation(point: {x: number; y: number}, settings: WordMagnetSettings) {
+  const feather = Math.max(settings.activationFeather, 1);
+  const outsideOuter = Math.max(0, ellipseDistanceFromBoundary(point, WORD_RING.outerRx, WORD_RING.outerRy));
+  const insideInner = Math.max(0, -ellipseDistanceFromBoundary(point, WORD_RING.innerRx, WORD_RING.innerRy));
+  const outerStrength = smoothstep(1 - outsideOuter / feather);
+  const innerStrength = smoothstep(1 - insideInner / feather);
+
+  return outerStrength * innerStrength;
+}
+
+function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}, settings: WordMagnetSettings, fieldStrength: number): WordMagnetTarget {
+  if (!point || fieldStrength <= 0) return {x: 0, y: 0, scale: 1};
 
   const dx = point.x - word.x;
   const dy = point.y - word.y;
@@ -68,12 +79,12 @@ function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {
   const proximity = 1 - clamp(distance / settings.falloffDistance, 0, 1);
   const intensity = proximity * proximity;
   const rawPull = settings.basePull + settings.maxPull * intensity;
-  const pull = Math.min(rawPull, distance * settings.cursorCapture);
+  const pull = Math.min(rawPull, distance * settings.cursorCapture) * fieldStrength;
 
   return {
     x: (dx / distance) * pull,
     y: (dy / distance) * pull,
-    scale: 1 + settings.maxScaleLift * intensity,
+    scale: 1 + settings.maxScaleLift * intensity * fieldStrength,
   };
 }
 
@@ -82,12 +93,13 @@ function isNearlyResting(state: WordMagnetState) {
 }
 
 export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const hourHandRef = useRef<SVGGElement>(null);
   const minuteHandRef = useRef<SVGGElement>(null);
   const secondHandRef = useRef<SVGGElement>(null);
   const wordRefs = useRef<Array<SVGGElement | null>>([]);
   const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1})));
-  const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null}>({active: false, point: null});
+  const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
   const visuals = runtimeParamsRef.current.visuals;
 
   useClockRuntime({
@@ -113,21 +125,22 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
       const magnet = runtimeParamsRef.current.wordMagnet;
       const previewPoint = magnet.previewMagnet ? {x: magnet.previewX, y: magnet.previewY} : null;
       const activePoint = !reducedMotion ? (pointer.active ? pointer.point : previewPoint) : null;
-      const smoothingBase = activePoint ? magnet.followSmoothing : magnet.returnSmoothing;
+      const fieldStrength = activePoint ? (pointer.active ? pointer.strength : 1) : 0;
+      const smoothingBase = fieldStrength > 0 ? magnet.followSmoothing : magnet.returnSmoothing;
       const smoothing = 1 - Math.pow(1 - smoothingBase, delta / 16.67);
-      let allResting = !activePoint;
+      let allResting = fieldStrength <= 0;
 
       WORD_LAYOUT.forEach((word, index) => {
         const node = wordRefs.current[index];
         const state = wordStatesRef.current[index];
         if (!node || !state) return;
 
-        const target = calculateWordMagnetTarget(activePoint, word, magnet);
+        const target = calculateWordMagnetTarget(activePoint, word, magnet, fieldStrength);
         state.x += (target.x - state.x) * smoothing;
         state.y += (target.y - state.y) * smoothing;
         state.scale += (target.scale - state.scale) * smoothing;
 
-        if (activePoint || !isNearlyResting(state)) {
+        if (fieldStrength > 0 || !isNearlyResting(state)) {
           allResting = false;
         }
 
@@ -137,7 +150,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
           state.scale = 1;
         }
 
-        node.classList.toggle('is-interacting', Boolean(activePoint));
+        node.classList.toggle('is-interacting', fieldStrength > 0);
         node.setAttribute(
           'transform',
           `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,
@@ -160,14 +173,15 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     return () => window.cancelAnimationFrame(frame);
   }, [reducedMotion]);
 
-  const updateWordRingMagnetism = (event: PointerEvent<SVGPathElement>) => {
-    const point = getSvgPoint(event);
+  const updateWordRingMagnetism = (event: PointerEvent<HTMLDivElement>) => {
+    const point = getSvgPoint(svgRef.current, event.clientX, event.clientY);
     if (!point) return;
-    wordPointerRef.current = {active: true, point: {x: point.x, y: point.y}};
+    const magnet = runtimeParamsRef.current.wordMagnet;
+    wordPointerRef.current = {active: true, point: {x: point.x, y: point.y}, strength: calculateRingActivation(point, magnet)};
   };
 
   const resetWordRingMagnetism = () => {
-    wordPointerRef.current = {active: false, point: null};
+    wordPointerRef.current = {active: false, point: null, strength: 0};
   };
 
   const style: ClockCssVars = {
@@ -182,7 +196,15 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
   return (
     <section className="reference-clock" aria-label="Reference word clock" style={style}>
+      <div
+        className="reference-clock__magnet-field"
+        aria-hidden="true"
+        onPointerEnter={updateWordRingMagnetism}
+        onPointerMove={updateWordRingMagnetism}
+        onPointerLeave={resetWordRingMagnetism}
+      />
       <svg
+        ref={svgRef}
         className="reference-clock__svg"
         viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
         role="img"
@@ -254,16 +276,6 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
             <line className="reference-clock__hand-core" x1={VIEWBOX.centerX} y1={VIEWBOX.centerY + 142} x2={VIEWBOX.centerX} y2="78" />
           </g>
         </g>
-
-        <path
-          className="reference-clock__word-ring-hit-area"
-          d={WORD_RING_PATH}
-          fillRule="evenodd"
-          aria-hidden="true"
-          onPointerEnter={updateWordRingMagnetism}
-          onPointerMove={updateWordRingMagnetism}
-          onPointerLeave={resetWordRingMagnetism}
-        />
 
         <g className="reference-clock__center" aria-hidden="true">
           <circle cx={VIEWBOX.centerX} cy={VIEWBOX.centerY} r="var(--center-pin-radius)" />

@@ -31,6 +31,7 @@ export const runtimeDialConfig = {
     falloffDistance: [235, 80, 340, 5],
     maxScaleLift: [0.17, 0, 0.22, 0.005],
     cursorCapture: [0.2, 0.2, 1.2, 0.01],
+    activationFeather: [72, 12, 140, 1],
     followSmoothing: [0.19, 0.05, 0.9, 0.01],
     returnSmoothing: [0.22, 0.05, 0.8, 0.01],
   },
@@ -67,6 +68,7 @@ export type RuntimeDialValues = {
     falloffDistance: number;
     maxScaleLift: number;
     cursorCapture: number;
+    activationFeather: number;
     followSmoothing: number;
     returnSmoothing: number;
   };

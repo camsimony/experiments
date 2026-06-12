@@ -7,10 +7,18 @@
   --center-pin-radius: 4;
   --artboard-scale: 1;
 
+  position: relative;
   width: min(88vw, calc(84svh * 1.247619));
   aspect-ratio: 524 / 420;
   transform: scale(var(--artboard-scale));
   transform-origin: center;
+}
+
+.reference-clock__magnet-field {
+  position: absolute;
+  inset: -96px;
+  z-index: 2;
+  background: transparent;
 }
 
 .reference-clock__svg {
@@ -28,11 +36,6 @@
 
 .reference-clock__word-hover-target {
   cursor: default;
-}
-
-.reference-clock__word-ring-hit-area {
-  fill: transparent;
-  pointer-events: fill;
 }
 
 .reference-clock__word {

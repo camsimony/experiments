@@ -31,6 +31,7 @@ export type ClockRuntimeParams = {
     falloffDistance: number;
     maxScaleLift: number;
     cursorCapture: number;
+    activationFeather: number;
     followSmoothing: number;
     returnSmoothing: number;
   };
@@ -81,6 +82,7 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     falloffDistance: 235,
     maxScaleLift: 0.17,
     cursorCapture: 0.2,
+    activationFeather: 72,
     followSmoothing: 0.19,
     returnSmoothing: 0.22,
   },
