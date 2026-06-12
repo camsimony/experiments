@@ -7,7 +7,7 @@ import {DEFAULT_RUNTIME_PARAMS, type ClockRuntimeParams, type MotionMode} from '
 import {getInitialClockId} from './app/galleryState';
 import {preloadThemeSwitchSound, playThemeSwitchSound} from './engine/themeSwitchSound';
 import {shouldReduceMotion} from './engine/time';
-import {runtimeDialConfig, themeDialConfig, type RuntimeDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
+import {runtimeDialConfig, soundDialConfig, themeDialConfig, type RuntimeDialValues, type SoundDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
 import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
 import './styles/global.css';
 
@@ -112,6 +112,7 @@ export default function App() {
     },
   }) as RuntimeDialValues;
   const themeDial = useDialKit('Clock themes', themeDialConfig) as ThemeDialValues;
+  const soundDial = useDialKit('Clock sound', soundDialConfig) as SoundDialValues;
   const themePresets = getThemePresetsFromDial(themeDial);
   const activeThemeIndex = clampThemeIndex(themeDial.Active.theme);
   const activeTheme = themePresets[activeThemeIndex];
@@ -119,8 +120,8 @@ export default function App() {
   runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
 
   useEffect(() => {
-    preloadThemeSwitchSound(themeDial.Sound.kit);
-  }, [themeDial.Sound.kit]);
+    preloadThemeSwitchSound(soundDial.kit);
+  }, [soundDial.kit]);
 
   useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));
@@ -163,7 +164,7 @@ export default function App() {
     }
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     void triggerHaptic('selection');
-    playThemeSwitchSound(themeDial.Sound);
+    playThemeSwitchSound(soundDial);
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 
@@ -189,7 +190,7 @@ export default function App() {
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>
-      <DialRoot position="bottom-right" defaultOpen={false} theme="light" productionEnabled />
+      <DialRoot position="top-right" defaultOpen={false} theme="light" productionEnabled />
     </main>
   );
 }

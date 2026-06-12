@@ -52,12 +52,6 @@ export const themeDialConfig = {
     releaseSmoothing: [0.25, 0.08, 0.95, 0.01],
     releaseIgnoreMs: [520, 80, 520, 10],
   },
-  Sound: {
-    enabled: true,
-    kit: {type: 'select', options: SND_KIT_OPTIONS, default: '01'},
-    sound: {type: 'select', options: SND_SOUND_OPTIONS, default: 'select'},
-    volume: [0.32, 0, 1, 0.01],
-  },
   Reference: {
     pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].pageBg},
     wordColor: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].wordColor},
@@ -109,6 +103,13 @@ type ThemeColorDialValues = {
   centerPinColor: string;
 };
 
+export const soundDialConfig = {
+  enabled: true,
+  kit: {type: 'select', options: SND_KIT_OPTIONS, default: '01'},
+  sound: {type: 'select', options: SND_SOUND_OPTIONS, default: 'select'},
+  volume: [0.32, 0, 1, 0.01],
+} satisfies DialConfig;
+
 export type ThemeDialValues = {
   Active: {
     theme: string;
@@ -121,17 +122,18 @@ export type ThemeDialValues = {
     releaseSmoothing: number;
     releaseIgnoreMs: number;
   };
-  Sound: {
-    enabled: boolean;
-    kit: string;
-    sound: string;
-    volume: number;
-  };
   Reference: ThemeColorDialValues;
   Blueprint: ThemeColorDialValues;
   Licorice: ThemeColorDialValues;
   Sorbet: ThemeColorDialValues;
   Moss: ThemeColorDialValues;
+};
+
+export type SoundDialValues = {
+  enabled: boolean;
+  kit: string;
+  sound: string;
+  volume: number;
 };
 
 export type RuntimeDialValues = {

@@ -44,3 +44,29 @@ textarea {
   max-width: none;
 }
 
+.dialkit-root .dialkit-panel-wrapper:nth-child(2) .dialkit-panel-icon,
+.dialkit-root .dialkit-panel-wrapper:nth-child(3) .dialkit-panel-icon {
+  display: none;
+}
+
+.dialkit-root .dialkit-panel-wrapper:nth-child(2) .dialkit-folder-header-top::after,
+.dialkit-root .dialkit-panel-wrapper:nth-child(3) .dialkit-folder-header-top::after {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dial-text-primary);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.dialkit-root .dialkit-panel-wrapper:nth-child(2) .dialkit-folder-header-top::after {
+  content: "🎨";
+}
+
+.dialkit-root .dialkit-panel-wrapper:nth-child(3) .dialkit-folder-header-top::after {
+  content: "♪";
+  font-size: 19px;
+  font-weight: 700;
+}
+
