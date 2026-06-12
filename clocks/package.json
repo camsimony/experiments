@@ -15,7 +15,8 @@
     "motion": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "web-haptics": "^0.0.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",

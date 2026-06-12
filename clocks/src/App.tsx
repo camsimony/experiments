@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent} from 'react';
 import {DialRoot, DialStore, useDialKit} from 'dialkit';
+import {useWebHaptics} from 'web-haptics/react';
 
 import {clockRegistry, getClockById} from './app/clockRegistry';
 import {DEFAULT_RUNTIME_PARAMS, type ClockRuntimeParams, type MotionMode} from './app/clockTypes';
@@ -100,6 +101,7 @@ export default function App() {
   const [themePress, setThemePress] = useState({isPressing: false, releaseToken: 0});
   const themePressingRef = useRef(false);
   const runtimeParamsRef = useRef<ClockRuntimeParams>(DEFAULT_RUNTIME_PARAMS);
+  const {trigger: triggerHaptic} = useWebHaptics();
   const dial = useDialKit('Clock runtime', runtimeDialConfig, {
     shortcuts: {
       'Time.hour': {key: 'h', interaction: 'drag', mode: 'coarse'},
@@ -155,6 +157,7 @@ export default function App() {
       // Matching the capture guard above.
     }
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
+    void triggerHaptic('selection');
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 
