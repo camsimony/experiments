@@ -158,6 +158,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const hourHandRef = useRef<SVGGElement>(null);
   const minuteHandRef = useRef<SVGGElement>(null);
   const secondHandRef = useRef<SVGGElement>(null);
+  const minuteBackdropClipRef = useRef<SVGRectElement>(null);
   const wordRefs = useRef<Array<SVGGElement | null>>([]);
   const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1, rotation: 0})));
   const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
@@ -171,6 +172,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
       hour: hourHandRef,
       minute: minuteHandRef,
       second: secondHandRef,
+      minuteBackdrop: minuteBackdropClipRef,
     },
     runtimeParamsRef,
     reducedMotion,
@@ -282,6 +284,12 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     wordPointerRef.current = {active: false, point: null, strength: 0};
   };
 
+  const minuteBackdropWidth = Math.max(visuals.minuteHandWidth + 18, 22);
+  const minuteBackdropX = VIEWBOX.centerX - minuteBackdropWidth / 2;
+  const minuteBackdropY = 52;
+  const minuteBackdropHeight = VIEWBOX.centerY + 18 - minuteBackdropY;
+  const minuteBackdropBlur = Math.max(visuals.minuteHandBlur * 2.75, 1.8);
+
   const style: ClockCssVars = {
     '--paper-color': theme.paperColor,
     '--word-color': theme.wordColor,
@@ -347,6 +355,19 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
           <filter id="minute-hand-soft-blur" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation={visuals.minuteHandBlur} />
           </filter>
+          <filter id="minute-hand-backdrop-blur" x="-8%" y="-8%" width="116%" height="116%">
+            <feGaussianBlur stdDeviation={minuteBackdropBlur} />
+          </filter>
+          <clipPath id="minute-hand-backdrop-clip" clipPathUnits="userSpaceOnUse">
+            <rect
+              ref={minuteBackdropClipRef}
+              x={minuteBackdropX}
+              y={minuteBackdropY}
+              width={minuteBackdropWidth}
+              height={minuteBackdropHeight}
+              rx={minuteBackdropWidth / 2}
+            />
+          </clipPath>
         </defs>
 
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
@@ -372,6 +393,25 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
               </g>
             </g>
           ))}
+        </g>
+
+        <g className="reference-clock__minute-backdrop" clipPath="url(#minute-hand-backdrop-clip)" aria-hidden="true">
+          <rect className="reference-clock__minute-backdrop-veil" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
+          <g className="reference-clock__minute-backdrop-words">
+            {WORD_LAYOUT.map((word) => (
+              <g key={`minute-backdrop-${word.label}`} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
+                <text
+                  className="reference-clock__minute-backdrop-word"
+                  x={word.x}
+                  y={word.y}
+                  fontSize={word.fontSize}
+                  textAnchor={word.anchor ?? 'middle'}
+                >
+                  {word.label}
+                </text>
+              </g>
+            ))}
+          </g>
         </g>
 
         <g className="reference-clock__hands" aria-hidden="true">
