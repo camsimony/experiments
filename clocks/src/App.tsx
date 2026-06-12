@@ -34,6 +34,14 @@ function toRuntimeParams(dial: RuntimeDialValues): ClockRuntimeParams {
       settleAmount: dial.Motion.settleAmount,
       settleDurationMs: dial.Motion.settleDurationMs,
     },
+    wordMagnet: {
+      maxPull: dial.WordMagnet.maxPull,
+      basePull: dial.WordMagnet.basePull,
+      falloffDistance: dial.WordMagnet.falloffDistance,
+      maxScaleLift: dial.WordMagnet.maxScaleLift,
+      followSmoothing: dial.WordMagnet.followSmoothing,
+      returnSmoothing: dial.WordMagnet.returnSmoothing,
+    },
   };
 }
 

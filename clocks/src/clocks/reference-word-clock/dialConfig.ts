@@ -22,6 +22,14 @@ export const runtimeDialConfig = {
     centerPinRadius: [4, 1, 14, 0.1],
     artboardScale: [1, 0.7, 1.25, 0.01],
   },
+  WordMagnet: {
+    maxPull: [19, 0, 42, 0.5],
+    basePull: [1.5, 0, 8, 0.1],
+    falloffDistance: [190, 80, 340, 5],
+    maxScaleLift: [0.09, 0, 0.22, 0.005],
+    followSmoothing: [0.46, 0.05, 0.9, 0.01],
+    returnSmoothing: [0.28, 0.05, 0.8, 0.01],
+  },
 } satisfies DialConfig;
 
 export type RuntimeDialValues = {
@@ -45,5 +53,13 @@ export type RuntimeDialValues = {
     secondHandWidth: number;
     centerPinRadius: number;
     artboardScale: number;
+  };
+  WordMagnet: {
+    maxPull: number;
+    basePull: number;
+    falloffDistance: number;
+    maxScaleLift: number;
+    followSmoothing: number;
+    returnSmoothing: number;
   };
 };

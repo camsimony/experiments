@@ -22,6 +22,14 @@ export type ClockRuntimeParams = {
     settleAmount: number;
     settleDurationMs: number;
   };
+  wordMagnet: {
+    maxPull: number;
+    basePull: number;
+    falloffDistance: number;
+    maxScaleLift: number;
+    followSmoothing: number;
+    returnSmoothing: number;
+  };
 };
 
 export type ClockHandRefs = {
@@ -59,5 +67,13 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
   motion: {
     settleAmount: 2.4,
     settleDurationMs: 210,
+  },
+  wordMagnet: {
+    maxPull: 19,
+    basePull: 1.5,
+    falloffDistance: 190,
+    maxScaleLift: 0.09,
+    followSmoothing: 0.46,
+    returnSmoothing: 0.28,
   },
 };

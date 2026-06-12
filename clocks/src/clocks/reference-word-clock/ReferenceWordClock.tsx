@@ -15,15 +15,20 @@ type WordMagnetState = {
 
 type WordMagnetTarget = WordMagnetState;
 
+type WordMagnetSettings = {
+  maxPull: number;
+  basePull: number;
+  falloffDistance: number;
+  maxScaleLift: number;
+  followSmoothing: number;
+  returnSmoothing: number;
+};
+
 const WORD_RING = {
   outerRx: 258,
   outerRy: 204,
   innerRx: 94,
   innerRy: 82,
-  falloffDistance: 190,
-  maxPull: 19,
-  basePull: 1.5,
-  maxScaleLift: 0.09,
 };
 
 const WORD_RING_PATH = [
@@ -50,20 +55,20 @@ function getSvgPoint(event: PointerEvent<SVGPathElement>) {
   return point.matrixTransform(matrix);
 }
 
-function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}): WordMagnetTarget {
+function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}, settings: WordMagnetSettings): WordMagnetTarget {
   if (!point) return {x: 0, y: 0, scale: 1};
 
   const dx = point.x - word.x;
   const dy = point.y - word.y;
   const distance = Math.max(Math.hypot(dx, dy), 1);
-  const proximity = 1 - clamp(distance / WORD_RING.falloffDistance, 0, 1);
+  const proximity = 1 - clamp(distance / settings.falloffDistance, 0, 1);
   const intensity = proximity * proximity;
-  const pull = WORD_RING.basePull + WORD_RING.maxPull * intensity;
+  const pull = settings.basePull + settings.maxPull * intensity;
 
   return {
     x: (dx / distance) * pull,
     y: (dy / distance) * pull,
-    scale: 1 + WORD_RING.maxScaleLift * intensity,
+    scale: 1 + settings.maxScaleLift * intensity,
   };
 }
 
@@ -101,7 +106,9 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
       previousTime = time;
       const pointer = wordPointerRef.current;
       const activePoint = !reducedMotion && pointer.active ? pointer.point : null;
-      const smoothing = 1 - Math.pow(1 - (activePoint ? 0.46 : 0.28), delta / 16.67);
+      const magnet = runtimeParamsRef.current.wordMagnet;
+      const smoothingBase = activePoint ? magnet.followSmoothing : magnet.returnSmoothing;
+      const smoothing = 1 - Math.pow(1 - smoothingBase, delta / 16.67);
       let allResting = !activePoint;
 
       WORD_LAYOUT.forEach((word, index) => {
@@ -109,7 +116,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         const state = wordStatesRef.current[index];
         if (!node || !state) return;
 
-        const target = calculateWordMagnetTarget(activePoint, word);
+        const target = calculateWordMagnetTarget(activePoint, word, magnet);
         state.x += (target.x - state.x) * smoothing;
         state.y += (target.y - state.y) * smoothing;
         state.scale += (target.scale - state.scale) * smoothing;
