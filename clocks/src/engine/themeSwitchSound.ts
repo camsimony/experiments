@@ -75,13 +75,40 @@ type SndConstructor = {
 
 const Snd = ((SndModule as unknown as {default?: SndConstructor}).default ?? SndModule) as SndConstructor;
 
-export const DEFAULT_RANDOM_SOUND_COLLECTION = Object.fromEntries(
-  SND_RANDOM_SOUND_OPTIONS.map((soundKey) => [soundKey, true]),
-) as Record<string, boolean>;
+export const DEFAULT_RANDOM_SOUND_COLLECTION: Record<string, boolean> = {
+  select: false,
+  button: false,
+  tap: true,
+  tap_01: true,
+  tap_02: true,
+  tap_03: true,
+  tap_04: true,
+  tap_05: true,
+  toggle_on: false,
+  toggle_off: false,
+  transition_up: false,
+  transition_down: false,
+  swipe: false,
+  swipe_01: false,
+  swipe_02: false,
+  swipe_03: false,
+  swipe_04: false,
+  swipe_05: false,
+  type: true,
+  type_01: true,
+  type_02: true,
+  type_03: true,
+  type_04: true,
+  type_05: true,
+  notification: false,
+  disabled: false,
+  caution: false,
+  celebration: false,
+};
 
 const DEFAULT_SOUND_SETTINGS: ThemeSwitchSoundSettings = {
   enabled: true,
-  randomize: false,
+  randomize: true,
   kit: '01',
   sound: 'select',
   volume: 0.32,
