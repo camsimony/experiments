@@ -119,8 +119,8 @@ export default function App() {
   runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
 
   useEffect(() => {
-    preloadThemeSwitchSound();
-  }, []);
+    preloadThemeSwitchSound(themeDial.Sound.kit);
+  }, [themeDial.Sound.kit]);
 
   useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));
@@ -163,7 +163,7 @@ export default function App() {
     }
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     void triggerHaptic('selection');
-    playThemeSwitchSound();
+    playThemeSwitchSound(themeDial.Sound);
     setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
   };
 

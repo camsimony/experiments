@@ -1,5 +1,6 @@
 import type {DialConfig} from 'dialkit';
 
+import {SND_KIT_OPTIONS, SND_SOUND_OPTIONS} from '../../engine/themeSwitchSound';
 import {REFERENCE_CLOCK_THEME_PRESETS} from './themes';
 
 const themeOptions = REFERENCE_CLOCK_THEME_PRESETS.map((theme, index) => ({value: String(index), label: theme.name}));
@@ -50,6 +51,12 @@ export const themeDialConfig = {
     pressSmoothing: [0.39, 0.05, 0.9, 0.01],
     releaseSmoothing: [0.25, 0.08, 0.95, 0.01],
     releaseIgnoreMs: [520, 80, 520, 10],
+  },
+  Sound: {
+    enabled: true,
+    kit: {type: 'select', options: SND_KIT_OPTIONS, default: '01'},
+    sound: {type: 'select', options: SND_SOUND_OPTIONS, default: 'select'},
+    volume: [0.32, 0, 1, 0.01],
   },
   Reference: {
     pageBg: {type: 'color', default: REFERENCE_CLOCK_THEME_PRESETS[0].pageBg},
@@ -113,6 +120,12 @@ export type ThemeDialValues = {
     pressSmoothing: number;
     releaseSmoothing: number;
     releaseIgnoreMs: number;
+  };
+  Sound: {
+    enabled: boolean;
+    kit: string;
+    sound: string;
+    volume: number;
   };
   Reference: ThemeColorDialValues;
   Blueprint: ThemeColorDialValues;
