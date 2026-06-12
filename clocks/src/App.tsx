@@ -8,7 +8,7 @@ import {getInitialClockId} from './app/galleryState';
 import {preloadThemeSwitchSound, playThemeSwitchSound} from './engine/themeSwitchSound';
 import {shouldReduceMotion} from './engine/time';
 import {runtimeDialConfig, soundDialConfig, themeDialConfig, type RuntimeDialValues, type SoundDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
-import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
+import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, toHexColorInput, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
 import './styles/global.css';
 
 type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg' | '--theme-transition-duration' | '--theme-transition-ease', string>;
@@ -205,10 +205,11 @@ export default function App() {
   const appBackground = runtimeParamsRef.current.theme.pageBg;
 
   useEffect(() => {
+    const browserChromeColor = toHexColorInput(appBackground);
     document.documentElement.style.setProperty('--clock-document-bg', appBackground);
     document.documentElement.style.backgroundColor = appBackground;
     document.body.style.backgroundColor = appBackground;
-    getOrCreateThemeColorMeta().content = appBackground;
+    getOrCreateThemeColorMeta().content = browserChromeColor;
   }, [appBackground]);
 
   useEffect(() => {
