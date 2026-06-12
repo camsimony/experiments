@@ -7,12 +7,36 @@ import './styles.css';
 
 type ClockCssVars = CSSProperties & Record<'--word-color' | '--second-hand-color' | '--hour-hand-width' | '--minute-hand-width' | '--second-hand-width' | '--center-pin-radius' | '--artboard-scale', string>;
 
-type WordHoverVars = CSSProperties & Record<'--word-hover-tilt', string>;
+type WordHoverVars = CSSProperties & Record<'--word-hover-x' | '--word-hover-y' | '--word-hover-rotate', string>;
 
-function randomizeWordTilt(event: PointerEvent<SVGGElement>) {
-  const direction = Math.random() > 0.5 ? 1 : -1;
-  const magnitude = 0.8 + Math.random() * 1.1;
-  event.currentTarget.style.setProperty('--word-hover-tilt', `${(direction * magnitude).toFixed(2)}deg`);
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function updateWordMagnetism(event: PointerEvent<SVGGElement>) {
+  const target = event.currentTarget;
+  const rect = target.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const x = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 2, -1, 1);
+  const y = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 2, -1, 1);
+
+  target.style.setProperty('--word-hover-x', `${(x * 5).toFixed(2)}px`);
+  target.style.setProperty('--word-hover-y', `${(y * 3.5).toFixed(2)}px`);
+  target.style.setProperty('--word-hover-rotate', `${(x * 2.6 + y * -0.6).toFixed(2)}deg`);
+}
+
+function enterWordMagnetism(event: PointerEvent<SVGGElement>) {
+  event.currentTarget.classList.add('is-interacting');
+  updateWordMagnetism(event);
+}
+
+function leaveWordMagnetism(event: PointerEvent<SVGGElement>) {
+  const target = event.currentTarget;
+  target.classList.remove('is-interacting');
+  target.style.setProperty('--word-hover-x', '0px');
+  target.style.setProperty('--word-hover-y', '0px');
+  target.style.setProperty('--word-hover-rotate', '0deg');
 }
 
 export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps) {
@@ -81,11 +105,17 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
         <g className="reference-clock__words" aria-hidden="true">
           {WORD_LAYOUT.map((word) => {
-            const hoverStyle: WordHoverVars = {'--word-hover-tilt': '1deg'};
+            const hoverStyle: WordHoverVars = {'--word-hover-x': '0px', '--word-hover-y': '0px', '--word-hover-rotate': '0deg'};
 
             return (
               <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
-                <g className="reference-clock__word-hover-target" style={hoverStyle} onPointerEnter={randomizeWordTilt}>
+                <g
+                  className="reference-clock__word-hover-target"
+                  style={hoverStyle}
+                  onPointerEnter={enterWordMagnetism}
+                  onPointerMove={updateWordMagnetism}
+                  onPointerLeave={leaveWordMagnetism}
+                >
                   <text
                     className="reference-clock__word"
                     x={word.x}
