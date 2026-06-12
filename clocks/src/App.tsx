@@ -34,6 +34,46 @@ function getThemePresetsFromDial(dial: ThemeDialValues): ReferenceClockThemePres
   ];
 }
 
+type ThemeOrderState = {
+  length: number;
+  queue: number[];
+};
+
+function shuffleThemeIndices(length: number) {
+  const order = Array.from({length}, (_, index) => index);
+
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+  }
+
+  return order;
+}
+
+function createThemeOrder(length: number, currentIndex: number): ThemeOrderState {
+  return {
+    length,
+    queue: shuffleThemeIndices(length).filter((index) => index !== currentIndex),
+  };
+}
+
+function getNextRandomThemeIndex(currentIndex: number, themeCount: number, state: ThemeOrderState | null) {
+  if (themeCount <= 1) return currentIndex;
+
+  const nextState = state?.length === themeCount && state.queue.length > 0
+    ? state
+    : createThemeOrder(themeCount, currentIndex);
+  const [index = currentIndex, ...queue] = nextState.queue;
+
+  return {
+    index,
+    state: {
+      length: themeCount,
+      queue,
+    },
+  };
+}
+
 function setThemeDialIndex(index: number) {
   const panel = DialStore.getPanels().find((candidate) => candidate.name === 'Clock themes');
   if (!panel) return;
@@ -106,6 +146,7 @@ export default function App() {
   const [reducedMotion, setReducedMotion] = useState(() => shouldReduceMotion());
   const [themePress, setThemePress] = useState({isPressing: false, releaseToken: 0});
   const themePressingRef = useRef(false);
+  const themeOrderRef = useRef<ThemeOrderState | null>(null);
   const runtimeParamsRef = useRef<ClockRuntimeParams>(DEFAULT_RUNTIME_PARAMS);
   const previousRandomCollectionRef = useRef<SoundDialValues['RandomCollection'] | null>(null);
   const {trigger: triggerHaptic} = useWebHaptics();
@@ -189,7 +230,13 @@ export default function App() {
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
     void triggerHaptic('selection');
     playThemeSwitchSound(soundDial);
-    setThemeDialIndex((activeThemeIndex + 1) % themePresets.length);
+    const nextTheme = getNextRandomThemeIndex(activeThemeIndex, themePresets.length, themeOrderRef.current);
+    if (typeof nextTheme === 'number') {
+      setThemeDialIndex(nextTheme);
+    } else {
+      themeOrderRef.current = nextTheme.state;
+      setThemeDialIndex(nextTheme.index);
+    }
   };
 
   const cancelThemePress = (event: PointerEvent<HTMLElement>) => {
