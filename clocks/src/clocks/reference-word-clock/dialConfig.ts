@@ -105,6 +105,7 @@ type ThemeColorDialValues = {
 
 export const soundDialConfig = {
   enabled: true,
+  randomize: false,
   kit: {type: 'select', options: SND_KIT_OPTIONS, default: '01'},
   sound: {type: 'select', options: SND_SOUND_OPTIONS, default: 'select'},
   volume: [0.32, 0, 1, 0.01],
@@ -131,6 +132,7 @@ export type ThemeDialValues = {
 
 export type SoundDialValues = {
   enabled: boolean;
+  randomize: boolean;
   kit: string;
   sound: string;
   volume: number;
