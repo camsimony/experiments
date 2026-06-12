@@ -25,7 +25,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: max(100vw, calc(100svh * 1.247619 + 2px));
+  width: min(92vw, calc(88svh * 1.247619));
   aspect-ratio: 524 / 420;
   transform: translate(-50%, -50%) scale(var(--artboard-scale));
   transform-origin: center;
@@ -154,6 +154,6 @@
 
 @media (max-width: 640px) {
   .reference-clock {
-    width: max(100vw, calc(100svh * 1.247619 + 2px));
+    width: min(94vw, calc(82svh * 1.247619));
   }
 }
