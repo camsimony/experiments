@@ -134,6 +134,46 @@ export const themeDialConfig = {
     secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[9].secondHandColor)},
     centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[9].centerPinColor)},
   },
+  Slate: {
+    pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].pageBg)},
+    wordColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].wordColor)},
+    hourHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].hourHandColor)},
+    minuteHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].minuteHandColor)},
+    secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].secondHandColor)},
+    centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[10].centerPinColor)},
+  },
+  Kelp: {
+    pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].pageBg)},
+    wordColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].wordColor)},
+    hourHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].hourHandColor)},
+    minuteHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].minuteHandColor)},
+    secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].secondHandColor)},
+    centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[11].centerPinColor)},
+  },
+  Cinder: {
+    pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].pageBg)},
+    wordColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].wordColor)},
+    hourHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].hourHandColor)},
+    minuteHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].minuteHandColor)},
+    secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].secondHandColor)},
+    centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[12].centerPinColor)},
+  },
+  Orchid: {
+    pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].pageBg)},
+    wordColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].wordColor)},
+    hourHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].hourHandColor)},
+    minuteHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].minuteHandColor)},
+    secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].secondHandColor)},
+    centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[13].centerPinColor)},
+  },
+  Tobacco: {
+    pageBg: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].pageBg)},
+    wordColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].wordColor)},
+    hourHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].hourHandColor)},
+    minuteHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].minuteHandColor)},
+    secondHandColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].secondHandColor)},
+    centerPinColor: {type: 'color', default: toHexColorInput(REFERENCE_CLOCK_THEME_PRESETS[14].centerPinColor)},
+  },
 } satisfies DialConfig;
 
 type ThemeColorDialValues = {
@@ -178,6 +218,11 @@ export type ThemeDialValues = {
   Mulberry: ThemeColorDialValues;
   Juniper: ThemeColorDialValues;
   Bone: ThemeColorDialValues;
+  Slate: ThemeColorDialValues;
+  Kelp: ThemeColorDialValues;
+  Cinder: ThemeColorDialValues;
+  Orchid: ThemeColorDialValues;
+  Tobacco: ThemeColorDialValues;
 };
 
 export type SoundDialValues = {

@@ -39,6 +39,11 @@ function getThemePresetsFromDial(dial: ThemeDialValues): ReferenceClockThemePres
     {name: 'Mulberry', ...dial.Mulberry},
     {name: 'Juniper', ...dial.Juniper},
     {name: 'Bone', ...dial.Bone},
+    {name: 'Slate', ...dial.Slate},
+    {name: 'Kelp', ...dial.Kelp},
+    {name: 'Cinder', ...dial.Cinder},
+    {name: 'Orchid', ...dial.Orchid},
+    {name: 'Tobacco', ...dial.Tobacco},
   ];
 }
 
