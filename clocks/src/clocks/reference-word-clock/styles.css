@@ -36,7 +36,7 @@
 }
 
 .reference-clock__word-hover-target:hover {
-  transform: translateY(-0.8px) scale(1.035) skewX(var(--word-hover-skew));
+  transform: scale(1.035) rotate(var(--word-hover-tilt));
   filter: saturate(1.04);
   will-change: transform, filter;
 }
