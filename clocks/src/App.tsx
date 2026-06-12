@@ -13,6 +13,8 @@ import './styles/global.css';
 
 type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg' | '--theme-transition-duration' | '--theme-transition-ease', string>;
 
+const showDialKitControls = import.meta.env.DEV || import.meta.env.VITE_SHOW_DIALKIT === 'true';
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -299,7 +301,7 @@ export default function App() {
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>
-      <DialRoot position="top-right" defaultOpen={false} theme="light" productionEnabled />
+      {showDialKitControls ? <DialRoot position="top-right" defaultOpen={false} theme="light" productionEnabled /> : null}
     </main>
   );
 }
