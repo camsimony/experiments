@@ -27,7 +27,7 @@ export const runtimeDialConfig = {
     previewX: [438, 0, 524, 1],
     previewY: [218, 0, 420, 1],
     maxPull: [25, 0, 42, 0.5],
-    basePull: [0.5, 0, 8, 0.1],
+    basePull: [1.5, 0, 8, 0.1],
     falloffDistance: [235, 80, 340, 5],
     maxScaleLift: [0.17, 0, 0.22, 0.005],
     cursorCapture: [0.2, 0.2, 1.2, 0.01],
