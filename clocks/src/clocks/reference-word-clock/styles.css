@@ -36,12 +36,17 @@
 }
 
 .reference-clock__word-hover-target.is-interacting {
-  transform: translate(var(--word-hover-x), var(--word-hover-y)) scale(1.075) rotate(var(--word-hover-rotate));
+  transform: translate(var(--word-hover-x), var(--word-hover-y)) scale(var(--word-hover-scale));
   filter: saturate(1.06);
   transition:
     transform 70ms cubic-bezier(0.16, 1, 0.3, 1),
     filter 70ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, filter;
+}
+
+.reference-clock__word-ring-hit-area {
+  fill: transparent;
+  pointer-events: fill;
 }
 
 .reference-clock__word {
