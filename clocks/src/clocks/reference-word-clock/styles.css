@@ -152,8 +152,14 @@
   }
 }
 
+@media (max-width: 820px) {
+  .reference-clock {
+    width: min(96vw, calc(90svh * 1.247619));
+  }
+}
+
 @media (max-width: 640px) {
   .reference-clock {
-    width: min(94vw, calc(82svh * 1.247619));
+    width: min(99vw, calc(88svh * 1.247619));
   }
 }
