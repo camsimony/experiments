@@ -1,4 +1,4 @@
-import {useRef, type CSSProperties, type PointerEvent} from 'react';
+import {useEffect, useRef, type CSSProperties, type PointerEvent} from 'react';
 
 import type {ClockProps} from '../../app/clockTypes';
 import {useClockRuntime} from '../../engine/useClockRuntime';
@@ -7,7 +7,13 @@ import './styles.css';
 
 type ClockCssVars = CSSProperties & Record<'--word-color' | '--second-hand-color' | '--hour-hand-width' | '--minute-hand-width' | '--second-hand-width' | '--center-pin-radius' | '--artboard-scale', string>;
 
-type WordHoverVars = CSSProperties & Record<'--word-hover-x' | '--word-hover-y' | '--word-hover-scale', string>;
+type WordMagnetState = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+type WordMagnetTarget = WordMagnetState;
 
 const WORD_RING = {
   outerRx: 258,
@@ -44,46 +50,34 @@ function getSvgPoint(event: PointerEvent<SVGPathElement>) {
   return point.matrixTransform(matrix);
 }
 
-function updateWordRingMagnetism(event: PointerEvent<SVGPathElement>) {
-  const point = getSvgPoint(event);
-  const svg = event.currentTarget.ownerSVGElement;
-  if (!point || !svg) return;
+function calculateWordMagnetTarget(point: {x: number; y: number} | null, word: {x: number; y: number}): WordMagnetTarget {
+  if (!point) return {x: 0, y: 0, scale: 1};
 
-  svg.querySelectorAll<SVGGElement>('.reference-clock__word-hover-target').forEach((word) => {
-    const wordX = Number(word.dataset.x);
-    const wordY = Number(word.dataset.y);
-    if (!Number.isFinite(wordX) || !Number.isFinite(wordY)) return;
+  const dx = point.x - word.x;
+  const dy = point.y - word.y;
+  const distance = Math.max(Math.hypot(dx, dy), 1);
+  const proximity = 1 - clamp(distance / WORD_RING.falloffDistance, 0, 1);
+  const intensity = proximity * proximity;
+  const pull = WORD_RING.basePull + WORD_RING.maxPull * intensity;
 
-    const dx = point.x - wordX;
-    const dy = point.y - wordY;
-    const distance = Math.max(Math.hypot(dx, dy), 1);
-    const proximity = 1 - clamp(distance / WORD_RING.falloffDistance, 0, 1);
-    const intensity = proximity * proximity;
-    const pull = WORD_RING.basePull + WORD_RING.maxPull * intensity;
-
-    word.classList.add('is-interacting');
-    word.style.setProperty('--word-hover-x', `${((dx / distance) * pull).toFixed(2)}px`);
-    word.style.setProperty('--word-hover-y', `${((dy / distance) * pull).toFixed(2)}px`);
-    word.style.setProperty('--word-hover-scale', `${(1 + WORD_RING.maxScaleLift * intensity).toFixed(3)}`);
-  });
+  return {
+    x: (dx / distance) * pull,
+    y: (dy / distance) * pull,
+    scale: 1 + WORD_RING.maxScaleLift * intensity,
+  };
 }
 
-function resetWordRingMagnetism(event: PointerEvent<SVGPathElement>) {
-  const svg = event.currentTarget.ownerSVGElement;
-  if (!svg) return;
-
-  svg.querySelectorAll<SVGGElement>('.reference-clock__word-hover-target').forEach((word) => {
-    word.classList.remove('is-interacting');
-    word.style.setProperty('--word-hover-x', '0px');
-    word.style.setProperty('--word-hover-y', '0px');
-    word.style.setProperty('--word-hover-scale', '1');
-  });
+function isNearlyResting(state: WordMagnetState) {
+  return Math.abs(state.x) < 0.01 && Math.abs(state.y) < 0.01 && Math.abs(state.scale - 1) < 0.0005;
 }
 
 export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps) {
   const hourHandRef = useRef<SVGGElement>(null);
   const minuteHandRef = useRef<SVGGElement>(null);
   const secondHandRef = useRef<SVGGElement>(null);
+  const wordRefs = useRef<Array<SVGGElement | null>>([]);
+  const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1})));
+  const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null}>({active: false, point: null});
   const visuals = runtimeParamsRef.current.visuals;
 
   useClockRuntime({
@@ -97,6 +91,68 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
     centerX: VIEWBOX.centerX,
     centerY: VIEWBOX.centerY,
   });
+
+  useEffect(() => {
+    let frame = 0;
+    let previousTime = performance.now();
+
+    const animateWords = (time: number) => {
+      const delta = Math.min(40, time - previousTime);
+      previousTime = time;
+      const pointer = wordPointerRef.current;
+      const activePoint = !reducedMotion && pointer.active ? pointer.point : null;
+      const smoothing = 1 - Math.pow(1 - (activePoint ? 0.46 : 0.28), delta / 16.67);
+      let allResting = !activePoint;
+
+      WORD_LAYOUT.forEach((word, index) => {
+        const node = wordRefs.current[index];
+        const state = wordStatesRef.current[index];
+        if (!node || !state) return;
+
+        const target = calculateWordMagnetTarget(activePoint, word);
+        state.x += (target.x - state.x) * smoothing;
+        state.y += (target.y - state.y) * smoothing;
+        state.scale += (target.scale - state.scale) * smoothing;
+
+        if (activePoint || !isNearlyResting(state)) {
+          allResting = false;
+        }
+
+        if (!activePoint && isNearlyResting(state)) {
+          state.x = 0;
+          state.y = 0;
+          state.scale = 1;
+        }
+
+        node.classList.toggle('is-interacting', Boolean(activePoint));
+        node.style.transform = `translate(${state.x.toFixed(3)}px, ${state.y.toFixed(3)}px) scale(${state.scale.toFixed(4)})`;
+      });
+
+      if (allResting) {
+        WORD_LAYOUT.forEach((_, index) => {
+          const node = wordRefs.current[index];
+          if (!node) return;
+          node.classList.remove('is-interacting');
+          node.style.transform = '';
+        });
+      }
+
+      frame = window.requestAnimationFrame(animateWords);
+    };
+
+    frame = window.requestAnimationFrame(animateWords);
+    return () => window.cancelAnimationFrame(frame);
+  }, [reducedMotion]);
+
+  const updateWordRingMagnetism = (event: PointerEvent<SVGPathElement>) => {
+    const point = getSvgPoint(event);
+    if (!point) return;
+    wordPointerRef.current = {active: true, point: {x: point.x, y: point.y}};
+  };
+
+  const resetWordRingMagnetism = () => {
+    wordPointerRef.current = {active: false, point: null};
+  };
 
   const style: ClockCssVars = {
     '--word-color': visuals.wordColor,
@@ -145,25 +201,26 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
 
         <g className="reference-clock__words" aria-hidden="true">
-          {WORD_LAYOUT.map((word) => {
-            const hoverStyle: WordHoverVars = {'--word-hover-x': '0px', '--word-hover-y': '0px', '--word-hover-scale': '1'};
-
-            return (
-              <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
-                <g className="reference-clock__word-hover-target" style={hoverStyle} data-x={word.x} data-y={word.y}>
-                  <text
-                    className="reference-clock__word"
-                    x={word.x}
-                    y={word.y}
-                    fontSize={word.fontSize}
-                    textAnchor={word.anchor ?? 'middle'}
-                  >
-                    {word.label}
-                  </text>
-                </g>
+          {WORD_LAYOUT.map((word, index) => (
+            <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
+              <g
+                ref={(node) => {
+                  wordRefs.current[index] = node;
+                }}
+                className="reference-clock__word-hover-target"
+              >
+                <text
+                  className="reference-clock__word"
+                  x={word.x}
+                  y={word.y}
+                  fontSize={word.fontSize}
+                  textAnchor={word.anchor ?? 'middle'}
+                >
+                  {word.label}
+                </text>
               </g>
-            );
-          })}
+            </g>
+          ))}
         </g>
 
         <g className="reference-clock__hands" aria-hidden="true">
