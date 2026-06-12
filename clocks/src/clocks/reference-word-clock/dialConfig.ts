@@ -1,6 +1,6 @@
 import type {DialConfig} from 'dialkit';
 
-import {SND_KIT_OPTIONS, SND_SOUND_OPTIONS} from '../../engine/themeSwitchSound';
+import {DEFAULT_RANDOM_SOUND_COLLECTION, SND_KIT_OPTIONS, SND_SOUND_OPTIONS} from '../../engine/themeSwitchSound';
 import {REFERENCE_CLOCK_THEME_PRESETS, toHexColorInput} from './themes';
 
 const themeOptions = REFERENCE_CLOCK_THEME_PRESETS.map((theme, index) => ({value: String(index), label: theme.name}));
@@ -109,6 +109,7 @@ export const soundDialConfig = {
   kit: {type: 'select', options: SND_KIT_OPTIONS, default: '01'},
   sound: {type: 'select', options: SND_SOUND_OPTIONS, default: 'select'},
   volume: [0.32, 0, 1, 0.01],
+  RandomCollection: DEFAULT_RANDOM_SOUND_COLLECTION,
 } satisfies DialConfig;
 
 export type ThemeDialValues = {
@@ -136,6 +137,7 @@ export type SoundDialValues = {
   kit: string;
   sound: string;
   volume: number;
+  RandomCollection: Record<string, boolean>;
 };
 
 export type RuntimeDialValues = {

@@ -102,6 +102,7 @@ export default function App() {
   const [themePress, setThemePress] = useState({isPressing: false, releaseToken: 0});
   const themePressingRef = useRef(false);
   const runtimeParamsRef = useRef<ClockRuntimeParams>(DEFAULT_RUNTIME_PARAMS);
+  const previousRandomCollectionRef = useRef<SoundDialValues['RandomCollection'] | null>(null);
   const {trigger: triggerHaptic} = useWebHaptics();
   const dial = useDialKit('Clock runtime', runtimeDialConfig, {
     shortcuts: {
@@ -122,6 +123,24 @@ export default function App() {
   useEffect(() => {
     preloadThemeSwitchSound(soundDial.kit);
   }, [soundDial.kit]);
+
+  useEffect(() => {
+    const previousCollection = previousRandomCollectionRef.current;
+    previousRandomCollectionRef.current = soundDial.RandomCollection;
+    if (!previousCollection) return;
+
+    const changedSound = Object.keys(soundDial.RandomCollection).find(
+      (soundKey) => previousCollection[soundKey] !== soundDial.RandomCollection[soundKey],
+    );
+    if (!changedSound) return;
+
+    playThemeSwitchSound({
+      ...soundDial,
+      enabled: true,
+      randomize: false,
+      sound: changedSound,
+    });
+  }, [soundDial]);
 
   useEffect(() => {
     const onHashChange = () => setActiveClockId(getInitialClockId(availableClockIds));

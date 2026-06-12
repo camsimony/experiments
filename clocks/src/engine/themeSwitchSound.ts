@@ -59,6 +59,7 @@ export type ThemeSwitchSoundSettings = {
   kit: string;
   sound: string;
   volume: number;
+  RandomCollection: Record<string, boolean>;
 };
 
 type SndInstance = {
@@ -74,12 +75,17 @@ type SndConstructor = {
 
 const Snd = ((SndModule as unknown as {default?: SndConstructor}).default ?? SndModule) as SndConstructor;
 
+export const DEFAULT_RANDOM_SOUND_COLLECTION = Object.fromEntries(
+  SND_RANDOM_SOUND_OPTIONS.map((soundKey) => [soundKey, true]),
+) as Record<string, boolean>;
+
 const DEFAULT_SOUND_SETTINGS: ThemeSwitchSoundSettings = {
   enabled: true,
   randomize: false,
   kit: '01',
   sound: 'select',
   volume: 0.32,
+  RandomCollection: DEFAULT_RANDOM_SOUND_COLLECTION,
 };
 
 let themeSwitchSound: SndInstance | null = null;
@@ -115,13 +121,19 @@ export function preloadThemeSwitchSound(kit = DEFAULT_SOUND_SETTINGS.kit) {
     });
 }
 
-function getRandomSoundKey() {
-  if (SND_RANDOM_SOUND_OPTIONS.length <= 1) return SND_RANDOM_SOUND_OPTIONS[0];
+function getEnabledRandomSounds(collection: Record<string, boolean>) {
+  return SND_RANDOM_SOUND_OPTIONS.filter((soundKey) => collection[soundKey] !== false);
+}
 
-  let nextSound = SND_RANDOM_SOUND_OPTIONS[Math.floor(Math.random() * SND_RANDOM_SOUND_OPTIONS.length)];
+function getRandomSoundKey(collection: Record<string, boolean>) {
+  const enabledSounds = getEnabledRandomSounds(collection);
+  if (enabledSounds.length === 0) return null;
+  if (enabledSounds.length === 1) return enabledSounds[0];
+
+  let nextSound = enabledSounds[Math.floor(Math.random() * enabledSounds.length)];
   if (nextSound === lastRandomSound) {
-    const currentIndex = SND_RANDOM_SOUND_OPTIONS.indexOf(nextSound);
-    nextSound = SND_RANDOM_SOUND_OPTIONS[(currentIndex + 1) % SND_RANDOM_SOUND_OPTIONS.length];
+    const currentIndex = enabledSounds.indexOf(nextSound);
+    nextSound = enabledSounds[(currentIndex + 1) % enabledSounds.length];
   }
   lastRandomSound = nextSound;
   return nextSound;
@@ -136,7 +148,7 @@ export function playThemeSwitchSound(settings: ThemeSwitchSoundSettings = DEFAUL
   preloadThemeSwitchSound(settings.kit);
   if (loadedKit !== settings.kit) return;
 
-  const soundKey = settings.randomize ? getRandomSoundKey() : settings.sound;
+  const soundKey = settings.randomize ? (getRandomSoundKey(settings.RandomCollection) ?? settings.sound) : settings.sound;
 
   try {
     sound.play(soundKey, {volume: settings.volume});
