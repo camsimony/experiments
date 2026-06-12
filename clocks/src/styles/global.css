@@ -5,6 +5,7 @@
 :root {
   --clock-document-bg: oklch(0.997 0.004 91.445);
 
+  color-scheme: dark light;
   color: oklch(0.213 0.006 62.958);
   background: var(--clock-document-bg);
   font-family: Futura, "League Spartan", Montserrat, Avenir, system-ui, sans-serif;
@@ -34,6 +35,15 @@ body {
   inset: 0;
   margin: 0;
   min-width: 320px;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -100vmax;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--clock-document-bg);
 }
 
 button,
