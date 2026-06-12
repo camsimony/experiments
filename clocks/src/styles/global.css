@@ -11,10 +11,17 @@
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
 }
 
 button,
@@ -25,15 +32,20 @@ textarea {
 }
 
 #root {
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .clock-app {
   position: relative;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
   display: grid;
   place-items: center;
-  padding: clamp(16px, 4vw, 48px);
+  padding: 0;
+  overflow: hidden;
   background-color: var(--clock-app-bg, oklch(0.997 0.004 91.445));
   transition: background-color var(--theme-transition-duration, 0ms) var(--theme-transition-ease, cubic-bezier(0.26, 0, 0.2, 1));
   user-select: none;
@@ -46,10 +58,13 @@ textarea {
 }
 
 .clock-app__stage {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
+  height: 100%;
   max-width: none;
+  overflow: visible;
 }
 
 .dialkit-root .dialkit-panel[data-position="top-right"] {
