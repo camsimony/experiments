@@ -109,6 +109,16 @@ function emitClockPointerEvent(event: PointerEvent<HTMLElement>, active: boolean
   }));
 }
 
+function getOrCreateThemeColorMeta() {
+  const existing = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (existing) return existing;
+
+  const meta = document.createElement('meta');
+  meta.name = 'theme-color';
+  document.head.append(meta);
+  return meta;
+}
+
 function toRuntimeParams(
   dial: RuntimeDialValues,
   theme: ReferenceClockThemePreset,
@@ -192,6 +202,14 @@ export default function App() {
   const activeTheme = themePresets[activeThemeIndex];
 
   runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
+  const appBackground = runtimeParamsRef.current.theme.pageBg;
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--clock-document-bg', appBackground);
+    document.documentElement.style.backgroundColor = appBackground;
+    document.body.style.backgroundColor = appBackground;
+    getOrCreateThemeColorMeta().content = appBackground;
+  }, [appBackground]);
 
   useEffect(() => {
     preloadThemeSwitchSound(soundDial.kit);
@@ -234,7 +252,7 @@ export default function App() {
   const activeClock = getClockById(activeClockId);
   const ActiveClock = activeClock.Component;
   const style: ClockAppCssVars = {
-    '--clock-app-bg': runtimeParamsRef.current.theme.pageBg,
+    '--clock-app-bg': appBackground,
     '--theme-transition-duration': reducedMotion ? '0ms' : `${runtimeParamsRef.current.themeSwitch.transitionDurationMs}ms`,
     '--theme-transition-ease': buildThemeTransitionEase(runtimeParamsRef.current.themeSwitch.transitionEaseIn),
   };
