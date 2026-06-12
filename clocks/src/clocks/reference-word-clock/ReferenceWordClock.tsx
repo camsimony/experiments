@@ -226,7 +226,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         };
       }
       const previewPoint = magnet.previewMagnet ? {x: magnet.previewX, y: magnet.previewY} : null;
-      const activePoint = !reducedMotion && !releaseIgnoringHover ? (pointer.active ? pointer.point : previewPoint) : null;
+      const activePoint = !reducedMotion ? (pointer.active ? pointer.point : !releaseIgnoringHover ? previewPoint : null) : null;
       const fieldStrength = activePoint ? (pointer.active ? pointer.strength : 1) : 0;
       const smoothingBase = isThemePressing ? themeSwitch.pressSmoothing : releaseIgnoringHover ? themeSwitch.releaseSmoothing : fieldStrength > 0 ? magnet.followSmoothing : magnet.returnSmoothing;
       const smoothing = 1 - Math.pow(1 - smoothingBase, delta / 16.67);
