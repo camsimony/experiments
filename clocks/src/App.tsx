@@ -57,7 +57,9 @@ type ThemeOrderState = {
 const KNICKS_TRIGGER_CLICK_COUNT = 5;
 const KNICKS_TRIGGER_WINDOW_MS = 1800;
 const KNICKS_MODE_DURATION_MS = 30_000;
-const KNICKS_BASKETBALL_COUNT = 34;
+const KNICKS_INITIAL_BASKETBALL_COUNT = 34;
+const KNICKS_BASKETBALLS_PER_EXTRA_BURST = 18;
+const KNICKS_MAX_BASKETBALLS = 178;
 
 function shuffleThemeIndices(length: number) {
   const order = Array.from({length}, (_, index) => index);
@@ -161,6 +163,7 @@ function getClockViewportCenter() {
 }
 
 type BasketballParticle = {
+  id: string;
   x: number;
   y: number;
   vx: number;
@@ -170,16 +173,17 @@ type BasketballParticle = {
   spin: number;
 };
 
-function createBasketballPhysicsParticles(triggerToken: number) {
+function createBasketballPhysicsParticles(triggerToken: number, count: number) {
   const random = seededRandom(triggerToken * 1459 + 23);
   const center = getClockViewportCenter();
 
-  return Array.from({length: KNICKS_BASKETBALL_COUNT}, (_, index) => {
-    const angle = (index / KNICKS_BASKETBALL_COUNT) * Math.PI * 2 + (random() - 0.5) * 0.72;
+  return Array.from({length: count}, (_, index) => {
+    const angle = (index / count) * Math.PI * 2 + (random() - 0.5) * 0.72;
     const speed = 5.8 + random() * 5.4;
     const size = 22 + random() * 16;
 
     return {
+      id: `${triggerToken}-${index}`,
       x: center.x + Math.cos(angle) * 4,
       y: center.y + Math.sin(angle) * 4,
       vx: Math.cos(angle) * speed,
@@ -192,18 +196,28 @@ function createBasketballPhysicsParticles(triggerToken: number) {
 }
 
 function KnicksBasketballField({active, triggerToken, reducedMotion}: {active: boolean; triggerToken: number; reducedMotion: boolean}) {
-  const nodesRef = useRef<Array<HTMLSpanElement | null>>([]);
+  const nodesRef = useRef<Record<string, HTMLSpanElement | null>>({});
   const particlesRef = useRef<BasketballParticle[]>([]);
+  const [particleIds, setParticleIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!active || reducedMotion) {
       particlesRef.current = [];
+      nodesRef.current = {};
+      setParticleIds([]);
       return;
     }
 
+    const burstCount = particlesRef.current.length === 0 ? KNICKS_INITIAL_BASKETBALL_COUNT : KNICKS_BASKETBALLS_PER_EXTRA_BURST;
+    particlesRef.current = [...particlesRef.current, ...createBasketballPhysicsParticles(triggerToken, burstCount)].slice(-KNICKS_MAX_BASKETBALLS);
+    setParticleIds(particlesRef.current.map((particle) => particle.id));
+  }, [active, reducedMotion, triggerToken]);
+
+  useEffect(() => {
+    if (!active || reducedMotion || particleIds.length === 0) return;
+
     let frame = 0;
     let previousTime = performance.now();
-    particlesRef.current = createBasketballPhysicsParticles(triggerToken);
 
     const animate = (time: number) => {
       const delta = Math.min(2.4, Math.max(0.35, (time - previousTime) / 16.67));
@@ -211,8 +225,8 @@ function KnicksBasketballField({active, triggerToken, reducedMotion}: {active: b
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      particlesRef.current.forEach((particle, index) => {
-        const node = nodesRef.current[index];
+      particlesRef.current.forEach((particle) => {
+        const node = nodesRef.current[particle.id];
         if (!node) return;
 
         particle.x += particle.vx * delta;
@@ -251,17 +265,17 @@ function KnicksBasketballField({active, triggerToken, reducedMotion}: {active: b
 
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [active, reducedMotion, triggerToken]);
+  }, [active, reducedMotion, particleIds.length]);
 
   if (!active || reducedMotion) return null;
 
   return (
     <div className="clock-app__basketball-field" aria-hidden="true">
-      {Array.from({length: KNICKS_BASKETBALL_COUNT}, (_, index) => (
+      {particleIds.map((particleId) => (
         <span
-          key={`${triggerToken}-${index}`}
+          key={particleId}
           ref={(node) => {
-            nodesRef.current[index] = node;
+            nodesRef.current[particleId] = node;
           }}
           className="clock-app__basketball"
         >
@@ -415,6 +429,10 @@ export default function App() {
     }
   }, []);
 
+  const addKnicksBasketballBurst = () => {
+    setEasterEgg((current) => ({...current, triggerToken: current.triggerToken + 1}));
+  };
+
   const triggerKnicksMode = () => {
     rapidThemeClicksRef.current = [];
 
@@ -479,7 +497,10 @@ export default function App() {
     void triggerHaptic('selection');
     playThemeSwitchSound(soundDial);
 
-    if (easterEgg.knicksMode) return;
+    if (easterEgg.knicksMode) {
+      addKnicksBasketballBurst();
+      return;
+    }
 
     if (registerThemeReleaseForEasterEgg()) return;
 
