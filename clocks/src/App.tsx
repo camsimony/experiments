@@ -8,7 +8,7 @@ import {getInitialClockId} from './app/galleryState';
 import {preloadThemeSwitchSound, playThemeSwitchSound} from './engine/themeSwitchSound';
 import {shouldReduceMotion} from './engine/time';
 import {runtimeDialConfig, soundDialConfig, themeDialConfig, type RuntimeDialValues, type SoundDialValues, type ThemeDialValues} from './clocks/reference-word-clock/dialConfig';
-import {buildClockThemeRuntime, REFERENCE_CLOCK_THEME_PRESETS, toHexColorInput, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
+import {buildClockThemeRuntime, KNICKS_CLOCK_THEME_PRESET, REFERENCE_CLOCK_THEME_PRESETS, toHexColorInput, type ReferenceClockThemePreset} from './clocks/reference-word-clock/themes';
 import './styles/global.css';
 
 type ClockAppCssVars = CSSProperties & Record<'--clock-app-bg' | '--theme-transition-duration' | '--theme-transition-ease', string>;
@@ -56,7 +56,8 @@ type ThemeOrderState = {
 
 const KNICKS_TRIGGER_CLICK_COUNT = 5;
 const KNICKS_TRIGGER_WINDOW_MS = 1800;
-const KNICKS_MODE_DURATION_MS = 6200;
+const KNICKS_MODE_DURATION_MS = 30_000;
+const KNICKS_BASKETBALL_COUNT = 34;
 
 function shuffleThemeIndices(length: number) {
   const order = Array.from({length}, (_, index) => index);
@@ -132,6 +133,143 @@ function getSafariChromeColor(background: string) {
   const perceivedLightness = (r * 299 + g * 587 + b * 114) / 1000;
 
   return perceivedLightness > 150 ? fallbackDarkChrome : hex;
+}
+
+function seededRandom(seed: number) {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6D2B79F5;
+    let next = value;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function getClockViewportCenter() {
+  const svg = document.querySelector<SVGSVGElement>('.reference-clock__svg');
+  const rect = svg?.getBoundingClientRect();
+
+  if (!rect || rect.width === 0 || rect.height === 0) {
+    return {x: window.innerWidth / 2, y: window.innerHeight / 2};
+  }
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+type BasketballParticle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  rotation: number;
+  spin: number;
+};
+
+function createBasketballPhysicsParticles(triggerToken: number) {
+  const random = seededRandom(triggerToken * 1459 + 23);
+  const center = getClockViewportCenter();
+
+  return Array.from({length: KNICKS_BASKETBALL_COUNT}, (_, index) => {
+    const angle = (index / KNICKS_BASKETBALL_COUNT) * Math.PI * 2 + (random() - 0.5) * 0.72;
+    const speed = 5.8 + random() * 5.4;
+    const size = 22 + random() * 16;
+
+    return {
+      x: center.x + Math.cos(angle) * 4,
+      y: center.y + Math.sin(angle) * 4,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size,
+      rotation: random() * 360,
+      spin: (random() > 0.5 ? 1 : -1) * (3.2 + random() * 5.8),
+    } satisfies BasketballParticle;
+  });
+}
+
+function KnicksBasketballField({active, triggerToken, reducedMotion}: {active: boolean; triggerToken: number; reducedMotion: boolean}) {
+  const nodesRef = useRef<Array<HTMLSpanElement | null>>([]);
+  const particlesRef = useRef<BasketballParticle[]>([]);
+
+  useEffect(() => {
+    if (!active || reducedMotion) {
+      particlesRef.current = [];
+      return;
+    }
+
+    let frame = 0;
+    let previousTime = performance.now();
+    particlesRef.current = createBasketballPhysicsParticles(triggerToken);
+
+    const animate = (time: number) => {
+      const delta = Math.min(2.4, Math.max(0.35, (time - previousTime) / 16.67));
+      previousTime = time;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      particlesRef.current.forEach((particle, index) => {
+        const node = nodesRef.current[index];
+        if (!node) return;
+
+        particle.x += particle.vx * delta;
+        particle.y += particle.vy * delta;
+        particle.rotation += particle.spin * delta;
+
+        const radius = particle.size * 0.48;
+        if (particle.x <= radius) {
+          particle.x = radius;
+          particle.vx = Math.abs(particle.vx) * 0.995;
+          particle.spin *= -0.98;
+        } else if (particle.x >= width - radius) {
+          particle.x = width - radius;
+          particle.vx = -Math.abs(particle.vx) * 0.995;
+          particle.spin *= -0.98;
+        }
+
+        if (particle.y <= radius) {
+          particle.y = radius;
+          particle.vy = Math.abs(particle.vy) * 0.995;
+          particle.spin *= -0.98;
+        } else if (particle.y >= height - radius) {
+          particle.y = height - radius;
+          particle.vy = -Math.abs(particle.vy) * 0.995;
+          particle.spin *= -0.98;
+        }
+
+        particle.vx *= 0.9995;
+        particle.vy *= 0.9995;
+        node.style.fontSize = `${particle.size.toFixed(1)}px`;
+        node.style.transform = `translate3d(${particle.x.toFixed(2)}px, ${particle.y.toFixed(2)}px, 0) translate(-50%, -50%) rotate(${particle.rotation.toFixed(2)}deg)`;
+      });
+
+      frame = window.requestAnimationFrame(animate);
+    };
+
+    frame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, reducedMotion, triggerToken]);
+
+  if (!active || reducedMotion) return null;
+
+  return (
+    <div className="clock-app__basketball-field" aria-hidden="true">
+      {Array.from({length: KNICKS_BASKETBALL_COUNT}, (_, index) => (
+        <span
+          key={`${triggerToken}-${index}`}
+          ref={(node) => {
+            nodesRef.current[index] = node;
+          }}
+          className="clock-app__basketball"
+        >
+          🏀
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function toRuntimeParams(
@@ -220,8 +358,9 @@ export default function App() {
   const themePresets = getThemePresetsFromDial(themeDial);
   const activeThemeIndex = clampThemeIndex(themeDial.Active.theme);
   const activeTheme = themePresets[activeThemeIndex];
+  const renderedTheme = easterEgg.knicksMode ? KNICKS_CLOCK_THEME_PRESET : activeTheme;
 
-  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion, easterEgg);
+  runtimeParamsRef.current = toRuntimeParams(dial, renderedTheme, themePress, themeDial.SwitchMotion, easterEgg);
   const appBackground = runtimeParamsRef.current.theme.pageBg;
 
   useEffect(() => {
@@ -296,7 +435,10 @@ export default function App() {
 
     if (rapidThemeClicksRef.current.length >= KNICKS_TRIGGER_CLICK_COUNT) {
       triggerKnicksMode();
+      return true;
     }
+
+    return false;
   };
 
   const activeClock = getClockById(activeClockId);
@@ -334,9 +476,13 @@ export default function App() {
     }
     emitClockPointerEvent(event, false);
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
-    registerThemeReleaseForEasterEgg();
     void triggerHaptic('selection');
     playThemeSwitchSound(soundDial);
+
+    if (easterEgg.knicksMode) return;
+
+    if (registerThemeReleaseForEasterEgg()) return;
+
     const nextTheme = getNextRandomThemeIndex(activeThemeIndex, themePresets.length, themeOrderRef.current);
     if (typeof nextTheme === 'number') {
       setThemeDialIndex(nextTheme);
@@ -370,6 +516,7 @@ export default function App() {
       <div className="clock-app__stage">
         <ActiveClock clockId={activeClock.id} runtimeParamsRef={runtimeParamsRef} reducedMotion={reducedMotion} />
       </div>
+      <KnicksBasketballField active={easterEgg.knicksMode} triggerToken={easterEgg.triggerToken} reducedMotion={reducedMotion} />
       {showDialKitControls ? <DialRoot position="top-right" defaultOpen={false} theme="light" productionEnabled /> : null}
     </main>
   );

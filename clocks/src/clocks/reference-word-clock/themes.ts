@@ -154,6 +154,16 @@ export const REFERENCE_CLOCK_THEME_PRESETS = [
   },
 ] satisfies ReferenceClockThemePreset[];
 
+export const KNICKS_CLOCK_THEME_PRESET = {
+  name: 'Knicks',
+  pageBg: 'oklch(0.985 0.006 250)',
+  wordColor: 'oklch(0.518 0.143 249.133)',
+  hourHandColor: 'oklch(0.518 0.143 249.133)',
+  minuteHandColor: 'oklch(0.726 0.169 54.096)',
+  secondHandColor: 'oklch(0.518 0.143 249.133)',
+  centerPinColor: 'oklch(0.726 0.169 54.096)',
+} satisfies ReferenceClockThemePreset;
+
 const WHITE = 'oklch(1 0 0)';
 const BLACK = 'oklch(0 0 0)';
 

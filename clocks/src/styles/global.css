@@ -92,6 +92,7 @@ textarea {
 
 .clock-app__stage {
   position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 100%;
@@ -99,6 +100,29 @@ textarea {
   max-width: none;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   overflow: visible;
+}
+
+.clock-app__basketball-field {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  contain: layout paint size;
+}
+
+.clock-app__basketball {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  transform: translate3d(50vw, 50vh, 0) translate(-50%, -50%);
+  line-height: 1;
+  filter: drop-shadow(0 7px 10px rgb(0 0 0 / 0.2));
+  will-change: transform;
 }
 
 .dialkit-root .dialkit-panel[data-position="top-right"] {

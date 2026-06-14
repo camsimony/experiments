@@ -121,40 +121,6 @@
   filter: blur(0);
 }
 
-.reference-clock__basketball-burst {
-  pointer-events: none;
-}
-
-.reference-clock__basketball {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: basketball-burst var(--burst-duration) cubic-bezier(0.16, 1, 0.3, 1) var(--burst-delay) both;
-  paint-order: stroke fill;
-  stroke: rgb(0 0 0 / 0.18);
-  stroke-width: 0.7px;
-}
-
-@keyframes basketball-burst {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.45) rotate(0deg);
-  }
-
-  12% {
-    opacity: 1;
-  }
-
-  68% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(var(--burst-x), var(--burst-y)) scale(1.18) rotate(var(--burst-rotate));
-  }
-}
-
 .reference-clock__hand line {
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
@@ -210,10 +176,6 @@
   .reference-clock__word,
   .reference-clock__knicks-logo {
     transition: none;
-  }
-
-  .reference-clock__basketball {
-    animation: none;
   }
 
   .reference-clock__word-hover-target.is-interacting {
