@@ -94,6 +94,10 @@
   transition-property: fill, stroke, opacity;
 }
 
+.reference-clock__knicks-logo-target {
+  pointer-events: none;
+}
+
 .reference-clock__knicks-logo {
   opacity: 0;
   pointer-events: none;

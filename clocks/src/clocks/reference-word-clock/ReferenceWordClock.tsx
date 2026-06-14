@@ -119,11 +119,36 @@ function createBasketballParticles(triggerToken: number) {
   });
 }
 
-function getKnicksLogoSize(fontSize: number) {
-  const width = clamp(fontSize * 1.55, 58, 116);
+const KNICKS_LOGO_JITTER = [
+  {angle: 0, radius: -2, rotation: -2, scale: 1.04},
+  {angle: 1.4, radius: 3, rotation: 2.4, scale: 0.96},
+  {angle: -1.2, radius: -1, rotation: -1.6, scale: 1},
+  {angle: 0.8, radius: 4, rotation: 1.8, scale: 1.03},
+  {angle: -1.6, radius: -3, rotation: -2.2, scale: 0.98},
+  {angle: 1, radius: 2, rotation: 2.8, scale: 1.01},
+  {angle: 0, radius: -2, rotation: -1, scale: 1.05},
+  {angle: -1.1, radius: 3, rotation: 1.6, scale: 0.97},
+  {angle: 1.6, radius: -1, rotation: -2.6, scale: 1},
+  {angle: -0.8, radius: 4, rotation: 2.1, scale: 1.02},
+  {angle: 1.2, radius: -3, rotation: -1.8, scale: 0.98},
+  {angle: -1.4, radius: 1, rotation: 2.5, scale: 1.01},
+];
+
+function getKnicksLogoPlacement(index: number) {
+  const jitter = KNICKS_LOGO_JITTER[index % KNICKS_LOGO_JITTER.length] ?? KNICKS_LOGO_JITTER[0];
+  const angle = -90 + index * 30 + jitter.angle;
+  const radians = (angle * Math.PI) / 180;
+  const rx = 174 + jitter.radius;
+  const ry = 154 + jitter.radius * 0.72;
+  const width = 70 * jitter.scale;
+  const height = width * KNICKS_LOGO_ASPECT_RATIO;
+
   return {
+    x: VIEWBOX.centerX + Math.cos(radians) * rx,
+    y: VIEWBOX.centerY + Math.sin(radians) * ry,
     width,
-    height: width * KNICKS_LOGO_ASPECT_RATIO,
+    height,
+    rotation: jitter.rotation,
   };
 }
 
@@ -218,7 +243,9 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const minuteHandRef = useRef<SVGGElement>(null);
   const secondHandRef = useRef<SVGGElement>(null);
   const wordRefs = useRef<Array<SVGGElement | null>>([]);
+  const logoRefs = useRef<Array<SVGGElement | null>>([]);
   const wordStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1, rotation: 0})));
+  const logoStatesRef = useRef<WordMagnetState[]>(WORD_LAYOUT.map(() => ({x: 0, y: 0, scale: 1, rotation: 0})));
   const wordPointerRef = useRef<{active: boolean; point: {x: number; y: number} | null; strength: number}>({active: false, point: null, strength: 0});
   const themeReleaseRef = useRef({token: 0, ignoreHoverUntil: 0});
   const themePressRef = useRef({isPressing: false, rotations: WORD_LAYOUT.map(() => 0)});
@@ -262,6 +289,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
 
       const releaseIgnoringHover = time < themeReleaseRef.current.ignoreHoverUntil;
       const isThemePressing = !reducedMotion && themeSwitch.isPressing;
+      const isKnicksMode = runtimeParamsRef.current.easterEgg.knicksMode;
 
       if (isThemePressing && !themePressRef.current.isPressing) {
         themePressRef.current = {
@@ -314,6 +342,40 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         node.setAttribute(
           'transform',
           `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${word.x} ${word.y}) rotate(${state.rotation.toFixed(3)}) scale(${state.scale.toFixed(4)}) translate(${-word.x} ${-word.y})`,
+        );
+      });
+
+      WORD_LAYOUT.forEach((_, index) => {
+        const node = logoRefs.current[index];
+        const state = logoStatesRef.current[index];
+        if (!node || !state) return;
+
+        const logo = getKnicksLogoPlacement(index);
+        const logoPoint = {x: logo.x, y: logo.y};
+        const magnetTarget = isKnicksMode ? calculateWordMagnetTarget(activePoint, logoPoint, magnet, fieldStrength) : {x: 0, y: 0, scale: 1, rotation: 0};
+        const themeTarget = isKnicksMode ? calculateThemeSwitchTarget(logoPoint, themeSwitch, themePressRef.current.rotations[index] ?? 0) : {x: 0, y: 0, scale: 1, rotation: 0};
+        const target = {
+          x: magnetTarget.x + themeTarget.x,
+          y: magnetTarget.y + themeTarget.y,
+          scale: 1 + (magnetTarget.scale - 1) + (themeTarget.scale - 1),
+          rotation: themeTarget.rotation,
+        };
+        state.x += (target.x - state.x) * smoothing;
+        state.y += (target.y - state.y) * smoothing;
+        state.scale += (target.scale - state.scale) * smoothing;
+        state.rotation += (target.rotation - state.rotation) * smoothing;
+
+        if (!activePoint && !isThemePressing && isNearlyResting(state)) {
+          state.x = 0;
+          state.y = 0;
+          state.scale = 1;
+          state.rotation = 0;
+        }
+
+        node.classList.toggle('is-interacting', isKnicksMode && (fieldStrength > 0 || isThemePressing));
+        node.setAttribute(
+          'transform',
+          `translate(${state.x.toFixed(3)} ${state.y.toFixed(3)}) translate(${logo.x.toFixed(3)} ${logo.y.toFixed(3)}) rotate(${(logo.rotation + state.rotation).toFixed(3)}) scale(${state.scale.toFixed(4)}) translate(${-logo.x.toFixed(3)} ${-logo.y.toFixed(3)})`,
         );
       });
 
@@ -434,36 +496,50 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
 
         <g className="reference-clock__words" aria-hidden="true">
-          {WORD_LAYOUT.map((word, index) => {
-            const logo = getKnicksLogoSize(word.fontSize);
-            return (
-              <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
-                <g
-                  ref={(node) => {
-                    wordRefs.current[index] = node;
-                  }}
-                  className="reference-clock__word-hover-target"
+          {WORD_LAYOUT.map((word, index) => (
+            <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
+              <g
+                ref={(node) => {
+                  wordRefs.current[index] = node;
+                }}
+                className="reference-clock__word-hover-target"
+              >
+                <text
+                  className="reference-clock__word"
+                  x={word.x}
+                  y={word.y}
+                  fontSize={word.fontSize}
+                  textAnchor={word.anchor ?? 'middle'}
                 >
-                  <text
-                    className="reference-clock__word"
-                    x={word.x}
-                    y={word.y}
-                    fontSize={word.fontSize}
-                    textAnchor={word.anchor ?? 'middle'}
-                  >
-                    {word.label}
-                  </text>
-                  <image
-                    className="reference-clock__knicks-logo"
-                    href={knicksLogoUrl}
-                    x={word.x - logo.width / 2}
-                    y={word.y - logo.height / 2}
-                    width={logo.width}
-                    height={logo.height}
-                    style={{transitionDelay: easterEgg.knicksMode ? `${index * 16}ms` : `${Math.max(0, 120 - index * 8)}ms`}}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                </g>
+                  {word.label}
+                </text>
+              </g>
+            </g>
+          ))}
+        </g>
+
+        <g className="reference-clock__knicks-logos" aria-hidden="true">
+          {WORD_LAYOUT.map((word, index) => {
+            const logo = getKnicksLogoPlacement(index);
+            return (
+              <g
+                key={word.label}
+                ref={(node) => {
+                  logoRefs.current[index] = node;
+                }}
+                className="reference-clock__knicks-logo-target"
+                transform={`rotate(${logo.rotation} ${logo.x} ${logo.y})`}
+              >
+                <image
+                  className="reference-clock__knicks-logo"
+                  href={knicksLogoUrl}
+                  x={logo.x - logo.width / 2}
+                  y={logo.y - logo.height / 2}
+                  width={logo.width}
+                  height={logo.height}
+                  style={{transitionDelay: easterEgg.knicksMode ? `${index * 18}ms` : `${Math.max(0, 130 - index * 8)}ms`}}
+                  preserveAspectRatio="xMidYMid meet"
+                />
               </g>
             );
           })}
