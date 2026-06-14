@@ -90,7 +90,65 @@
   pointer-events: bounding-box;
   user-select: none;
   -webkit-user-select: none;
-  transition-property: fill, stroke;
+  opacity: 1;
+  transition-property: fill, stroke, opacity;
+}
+
+.reference-clock__knicks-logo {
+  opacity: 0;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.9);
+  filter: blur(1.5px);
+  transition-property: opacity, transform, filter;
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.reference-clock.is-knicks-mode .reference-clock__word {
+  opacity: 0;
+  transition-duration: 140ms;
+}
+
+.reference-clock.is-knicks-mode .reference-clock__knicks-logo {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+.reference-clock__basketball-burst {
+  pointer-events: none;
+}
+
+.reference-clock__basketball {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: basketball-burst var(--burst-duration) cubic-bezier(0.16, 1, 0.3, 1) var(--burst-delay) both;
+  paint-order: stroke fill;
+  stroke: rgb(0 0 0 / 0.18);
+  stroke-width: 0.7px;
+}
+
+@keyframes basketball-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.45) rotate(0deg);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  68% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--burst-x), var(--burst-y)) scale(1.18) rotate(var(--burst-rotate));
+  }
 }
 
 .reference-clock__hand line {
@@ -144,8 +202,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reference-clock__word-hover-target {
+  .reference-clock__word-hover-target,
+  .reference-clock__word,
+  .reference-clock__knicks-logo {
     transition: none;
+  }
+
+  .reference-clock__basketball {
+    animation: none;
   }
 
   .reference-clock__word-hover-target.is-interacting {

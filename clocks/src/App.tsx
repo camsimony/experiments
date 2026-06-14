@@ -54,6 +54,10 @@ type ThemeOrderState = {
   queue: number[];
 };
 
+const KNICKS_TRIGGER_CLICK_COUNT = 5;
+const KNICKS_TRIGGER_WINDOW_MS = 1800;
+const KNICKS_MODE_DURATION_MS = 6200;
+
 function shuffleThemeIndices(length: number) {
   const order = Array.from({length}, (_, index) => index);
 
@@ -135,6 +139,7 @@ function toRuntimeParams(
   theme: ReferenceClockThemePreset,
   themePress: {isPressing: boolean; releaseToken: number},
   switchMotion: ThemeDialValues['SwitchMotion'],
+  easterEgg: {knicksMode: boolean; triggerToken: number},
 ): ClockRuntimeParams {
   const mode = dial.Time.mode === 'scrub' ? 'scrub' : 'live';
   const motionMode: MotionMode = dial.Motion.mode === 'tick-settle' ? 'tick-settle' : 'continuous';
@@ -185,6 +190,7 @@ function toRuntimeParams(
       followSmoothing: dial.WordMagnet.followSmoothing,
       returnSmoothing: dial.WordMagnet.returnSmoothing,
     },
+    easterEgg,
   };
 }
 
@@ -193,8 +199,11 @@ export default function App() {
   const [activeClockId, setActiveClockId] = useState(() => getInitialClockId(availableClockIds));
   const [reducedMotion, setReducedMotion] = useState(() => shouldReduceMotion());
   const [themePress, setThemePress] = useState({isPressing: false, releaseToken: 0});
+  const [easterEgg, setEasterEgg] = useState({knicksMode: false, triggerToken: 0});
   const themePressingRef = useRef(false);
   const themeOrderRef = useRef<ThemeOrderState | null>(null);
+  const rapidThemeClicksRef = useRef<number[]>([]);
+  const knicksModeTimeoutRef = useRef<number | null>(null);
   const runtimeParamsRef = useRef<ClockRuntimeParams>(DEFAULT_RUNTIME_PARAMS);
   const previousRandomCollectionRef = useRef<SoundDialValues['RandomCollection'] | null>(null);
   const {trigger: triggerHaptic} = useWebHaptics();
@@ -212,7 +221,7 @@ export default function App() {
   const activeThemeIndex = clampThemeIndex(themeDial.Active.theme);
   const activeTheme = themePresets[activeThemeIndex];
 
-  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion);
+  runtimeParamsRef.current = toRuntimeParams(dial, activeTheme, themePress, themeDial.SwitchMotion, easterEgg);
   const appBackground = runtimeParamsRef.current.theme.pageBg;
 
   useEffect(() => {
@@ -261,6 +270,35 @@ export default function App() {
     return () => media.removeEventListener('change', update);
   }, []);
 
+  useEffect(() => () => {
+    if (knicksModeTimeoutRef.current !== null) {
+      window.clearTimeout(knicksModeTimeoutRef.current);
+    }
+  }, []);
+
+  const triggerKnicksMode = () => {
+    rapidThemeClicksRef.current = [];
+
+    if (knicksModeTimeoutRef.current !== null) {
+      window.clearTimeout(knicksModeTimeoutRef.current);
+    }
+
+    setEasterEgg((current) => ({knicksMode: true, triggerToken: current.triggerToken + 1}));
+    knicksModeTimeoutRef.current = window.setTimeout(() => {
+      setEasterEgg((current) => ({...current, knicksMode: false}));
+      knicksModeTimeoutRef.current = null;
+    }, KNICKS_MODE_DURATION_MS);
+  };
+
+  const registerThemeReleaseForEasterEgg = () => {
+    const now = performance.now();
+    rapidThemeClicksRef.current = [...rapidThemeClicksRef.current, now].filter((time) => now - time <= KNICKS_TRIGGER_WINDOW_MS);
+
+    if (rapidThemeClicksRef.current.length >= KNICKS_TRIGGER_CLICK_COUNT) {
+      triggerKnicksMode();
+    }
+  };
+
   const activeClock = getClockById(activeClockId);
   const ActiveClock = activeClock.Component;
   const style: ClockAppCssVars = {
@@ -296,6 +334,7 @@ export default function App() {
     }
     emitClockPointerEvent(event, false);
     setThemePress((current) => ({isPressing: false, releaseToken: current.releaseToken + 1}));
+    registerThemeReleaseForEasterEgg();
     void triggerHaptic('selection');
     playThemeSwitchSound(soundDial);
     const nextTheme = getNextRandomThemeIndex(activeThemeIndex, themePresets.length, themeOrderRef.current);

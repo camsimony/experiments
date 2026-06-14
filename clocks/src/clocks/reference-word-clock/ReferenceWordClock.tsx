@@ -1,7 +1,8 @@
-import {useEffect, useRef, type CSSProperties, type PointerEvent} from 'react';
+import {useEffect, useMemo, useRef, type CSSProperties, type PointerEvent} from 'react';
 
 import type {ClockProps} from '../../app/clockTypes';
 import {useClockRuntime} from '../../engine/useClockRuntime';
+import knicksLogoUrl from '../../assets/knicks-logo.svg';
 import {VIEWBOX, WORD_LAYOUT} from './layout';
 import './styles.css';
 
@@ -73,12 +74,58 @@ type ReferenceClockPointerEvent = CustomEvent<{
   clientY: number;
 }>;
 
+type BasketballParticleStyle = CSSProperties & Record<'--burst-x' | '--burst-y' | '--burst-rotate' | '--burst-duration' | '--burst-delay', string>;
+
 const WORD_RING = {
   outerRx: 258,
   outerRy: 204,
   innerRx: 94,
   innerRy: 82,
 };
+
+const KNICKS_LOGO_ASPECT_RATIO = 221.28003 / 272.87998;
+const BASKETBALL_PARTICLE_COUNT = 34;
+
+function seededRandom(seed: number) {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6D2B79F5;
+    let next = value;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function createBasketballParticles(triggerToken: number) {
+  if (triggerToken <= 0) return [];
+
+  const random = seededRandom(triggerToken * 1009 + 17);
+  return Array.from({length: BASKETBALL_PARTICLE_COUNT}, (_, index) => {
+    const angle = (index / BASKETBALL_PARTICLE_COUNT) * Math.PI * 2 + (random() - 0.5) * 0.6;
+    const distance = 74 + random() * 172;
+    const arc = (random() - 0.5) * 42;
+    const size = 13 + random() * 12;
+
+    return {
+      id: `${triggerToken}-${index}`,
+      x: Math.cos(angle) * distance + Math.cos(angle + Math.PI / 2) * arc,
+      y: Math.sin(angle) * distance + Math.sin(angle + Math.PI / 2) * arc,
+      size,
+      rotate: (random() > 0.5 ? 1 : -1) * (180 + random() * 460),
+      duration: 760 + random() * 420,
+      delay: random() * 120,
+    };
+  });
+}
+
+function getKnicksLogoSize(fontSize: number) {
+  const width = clamp(fontSize * 1.55, 58, 116);
+  return {
+    width,
+    height: width * KNICKS_LOGO_ASPECT_RATIO,
+  };
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -178,6 +225,8 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   const visuals = runtimeParamsRef.current.visuals;
   const theme = runtimeParamsRef.current.theme;
   const themeSwitch = runtimeParamsRef.current.themeSwitch;
+  const easterEgg = runtimeParamsRef.current.easterEgg;
+  const basketballParticles = useMemo(() => createBasketballParticles(easterEgg.triggerToken), [easterEgg.triggerToken]);
 
   useClockRuntime({
     hands: {
@@ -341,7 +390,7 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
   };
 
   return (
-    <section className="reference-clock" aria-label="Reference word clock" style={style}>
+    <section className={`reference-clock${easterEgg.knicksMode ? ' is-knicks-mode' : ''}`} aria-label="Reference word clock" style={style}>
       <div
         className="reference-clock__magnet-field"
         aria-hidden="true"
@@ -385,27 +434,65 @@ export function ReferenceWordClock({runtimeParamsRef, reducedMotion}: ClockProps
         <rect className="reference-clock__paper" x="0" y="0" width={VIEWBOX.width} height={VIEWBOX.height} />
 
         <g className="reference-clock__words" aria-hidden="true">
-          {WORD_LAYOUT.map((word, index) => (
-            <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
-              <g
-                ref={(node) => {
-                  wordRefs.current[index] = node;
-                }}
-                className="reference-clock__word-hover-target"
-              >
-                <text
-                  className="reference-clock__word"
-                  x={word.x}
-                  y={word.y}
-                  fontSize={word.fontSize}
-                  textAnchor={word.anchor ?? 'middle'}
+          {WORD_LAYOUT.map((word, index) => {
+            const logo = getKnicksLogoSize(word.fontSize);
+            return (
+              <g key={word.label} transform={`rotate(${word.rotation} ${word.x} ${word.y})`}>
+                <g
+                  ref={(node) => {
+                    wordRefs.current[index] = node;
+                  }}
+                  className="reference-clock__word-hover-target"
                 >
-                  {word.label}
-                </text>
+                  <text
+                    className="reference-clock__word"
+                    x={word.x}
+                    y={word.y}
+                    fontSize={word.fontSize}
+                    textAnchor={word.anchor ?? 'middle'}
+                  >
+                    {word.label}
+                  </text>
+                  <image
+                    className="reference-clock__knicks-logo"
+                    href={knicksLogoUrl}
+                    x={word.x - logo.width / 2}
+                    y={word.y - logo.height / 2}
+                    width={logo.width}
+                    height={logo.height}
+                    style={{transitionDelay: easterEgg.knicksMode ? `${index * 16}ms` : `${Math.max(0, 120 - index * 8)}ms`}}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                </g>
               </g>
-            </g>
-          ))}
+            );
+          })}
         </g>
+
+        {easterEgg.knicksMode && !reducedMotion ? (
+          <g key={easterEgg.triggerToken} className="reference-clock__basketball-burst" aria-hidden="true">
+            {basketballParticles.map((particle) => (
+              <text
+                key={particle.id}
+                className="reference-clock__basketball"
+                x={VIEWBOX.centerX}
+                y={VIEWBOX.centerY}
+                fontSize={particle.size}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{
+                  '--burst-x': `${particle.x}px`,
+                  '--burst-y': `${particle.y}px`,
+                  '--burst-rotate': `${particle.rotate}deg`,
+                  '--burst-duration': `${particle.duration}ms`,
+                  '--burst-delay': `${particle.delay}ms`,
+                } as BasketballParticleStyle}
+              >
+                🏀
+              </text>
+            ))}
+          </g>
+        ) : null}
 
         <g className="reference-clock__hands" aria-hidden="true">
           <g ref={minuteHandRef} className="reference-clock__hand reference-clock__hand--minute" transform={`rotate(0 ${VIEWBOX.centerX} ${VIEWBOX.centerY})`}>

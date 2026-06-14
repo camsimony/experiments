@@ -67,6 +67,10 @@ export type ClockRuntimeParams = {
     followSmoothing: number;
     returnSmoothing: number;
   };
+  easterEgg: {
+    knicksMode: boolean;
+    triggerToken: number;
+  };
 };
 
 export type ClockHandRefs = {
@@ -147,5 +151,9 @@ export const DEFAULT_RUNTIME_PARAMS: ClockRuntimeParams = {
     activationFeather: 72,
     followSmoothing: 0.19,
     returnSmoothing: 0.22,
+  },
+  easterEgg: {
+    knicksMode: false,
+    triggerToken: 0,
   },
 };
