@@ -36,10 +36,27 @@ type Player = {
   /* moving like a player, not a cursor: a velocity that builds and
      bleeds off, a target that's followed smoothly, a stride of their own */
   vx: number; vy: number; sx: number; sy: number; cad: number;
+  /* on their feet: each foot is somewhere on the court and stays there
+     while it's down, the body carried over it; then it's picked up and
+     put down ahead (or to the side, or behind: wherever the body's
+     going). fl, fr: the feet (court ft); sw: which is in the air (-1
+     neither, 0 fl, 1 fr), how far through its step (su), how long the
+     step takes, and where it's from and to; last: which stepped last;
+     set: standing, settled where they meant to be */
+  fl: [number, number]; fr: [number, number];
+  sw: number; su: number; sdur: number; sf: [number, number]; st: [number, number]; last: number;
+  set: boolean;
+  /* what they've got on. hat: 0 nothing, 1 a headband, 2 a fitted cap,
+     3 the cap on backwards, 4 a durag, 5 a lot of hair; kit: 0 a tee,
+     1 a jersey (bare shoulders, piping); shoe and shorts: which of a few
+     colours; hatC: the hat's colour; trim: the jersey's piping (0 orange,
+     1 blue, 2 white) */
+  guard: number;   // down in a defender's stance, arms out (0..1)
+  hat: number; kit: number; shoe: number; shorts: number; hatC: [number, number, number]; trim: number;
 };
 type Ball = {
   x: number; y: number; h: number;
-  mode: "held" | "pass" | "shot" | "loose" | "gone";
+  mode: "held" | "pass" | "shot" | "loose" | "gone" | "carried";   // carried: under someone's arm, on the way in or out
   holder: number; to: number;
   t: number; dur: number; from: [number, number, number]; aim: [number, number, number];
   vx: number; vy: number; vh: number; make: boolean;
@@ -47,16 +64,29 @@ type Ball = {
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+/* how far from the body a foot's drawn (ft): as it is up to the first,
+   never past the second */
+const REACH_NEAR = 0.9, REACH_MAX = 1.7;
 const wrapPi = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const SPOTS: [number, number][] = [[24, 0], [21, 13], [21, -13], [4, 21], [4, -21], [9, 8], [9, -8], [15, 4], [15, -4]];
 /* out beyond the arc (23.75 ft from the rim; 22 in the corners): where
    the open man goes when his defender's left him */
 const THREES: [number, number][] = [[32, 0], [24, 18], [24, -18], [4, 24], [4, -24]];
 /* (no reds: they'd be lost on the lane) */
-const BRIGHT = [[0.2, 0.36, 0.72], [0.16, 0.3, 0.62], [0.92, 0.7, 0.18], [0.12, 0.12, 0.14]];
-const SHIRTS = [[0.93, 0.93, 0.9], [0.9, 0.9, 0.88], [0.85, 0.86, 0.84]];
 /* light, medium and dark */
 const SKIN = [[0.93, 0.76, 0.64], [0.86, 0.66, 0.52], [0.74, 0.54, 0.4], [0.62, 0.44, 0.31], [0.44, 0.3, 0.21], [0.32, 0.21, 0.15]];
+/* what a New York court's wearing: for the side in white, a home Knicks
+   jersey, a white tee, a heather grey one; for the other, the Knicks'
+   blue, their orange, a black tee. [top, kit, trim] */
+const KITS: [number[], number, number][][] = [
+  [[[0.95, 0.95, 0.93], 1, 1], [[0.93, 0.93, 0.9], 0, 0], [[0.74, 0.75, 0.76], 0, 0]],
+  [[[0.1, 0.3, 0.72], 1, 0], [[0.95, 0.5, 0.12], 1, 1], [[0.11, 0.11, 0.13], 0, 0]],
+];
+/* on their heads: [hat, colour]: nothing; a white headband, an orange
+   one; a navy fitted (the Yankees'), forwards and back; a black durag, a
+   red one; a lot of hair */
+const HATS: [number, number[]][] = [[0, [0, 0, 0]], [0, [0, 0, 0]], [1, [0.95, 0.95, 0.93]], [1, [0.95, 0.5, 0.12]], [2, [0.09, 0.12, 0.24]], [3, [0.09, 0.12, 0.24]], [3, [0.1, 0.1, 0.11]], [4, [0.07, 0.07, 0.08]], [4, [0.6, 0.1, 0.1]], [5, [0, 0, 0]]];
+const shuffled = <T,>(a: T[]) => a.map((v) => [Math.random(), v] as [number, T]).sort((x, y) => x[0] - y[0]).map((v) => v[1]);
 const HAIR = [[0.06, 0.05, 0.05], [0.1, 0.08, 0.07], [0.2, 0.14, 0.09], [0.12, 0.12, 0.14]];
 
 export function createPickup(L: Layout) {
@@ -66,24 +96,30 @@ export function createPickup(L: Layout) {
   const GATE: [number, number] = [(cx - L.fence[0]) / ft + 1, (L.gate[1] - cy) / ft];
   const OUT: [number, number] = [GATE[0] + 14, GATE[1] - 6];
 
+  /* (no two alike: the kits dealt out within a side, the hats across
+     everyone, the shoes and shorts too) */
+  const kits = [shuffled(KITS[0]), shuffled(KITS[1])], hats = shuffled(HATS), shoes = shuffled([0, 1, 1, 2, 3, 4]), shorts_ = shuffled([0, 0, 1, 2, 3, 4]);
   const players: Player[] = Array.from({ length: PLAYERS }, (_, i) => {
-    const team = i < 3 ? 0 : 1;
+    const team = i < 3 ? 0 : 1, kit = kits[team][i % 3], hat = hats[i];
     return {
       x: OUT[0], y: OUT[1], hd: 0, phase: Math.random() * 6, tx: OUT[0], ty: OUT[1],
       team, man: team === 1 ? i - 3 : -1,
       /* white tees against the bright ones */
-      top: [...(team === 0 ? pick(SHIRTS) : pick(BRIGHT))] as [number, number, number],
+      top: [...kit[0]] as [number, number, number], kit: kit[1], trim: kit[2],
+      guard: 0, hat: hat[0], hatC: [...hat[1]] as [number, number, number], shoe: shoes[i], shorts: shorts_[i],
       hair: [...pick(HAIR)] as [number, number, number], pose: 0,
       /* everyone their own skin: spread across light, medium and dark */
       skin: [...SKIN[(i * 2 + (i < 3 ? 0 : 1) + Math.floor(Math.random() * 2)) % SKIN.length]] as [number, number, number],
-      hairK: pick([0.15, 0.6, 0.9, 1]), speed: rnd(12, 16),
+      hairK: hat[0] === 5 ? 1 : pick([0.15, 0.6, 0.9, 1]), speed: rnd(11, 14),
       vx: 0, vy: 0, sx: OUT[0], sy: OUT[1], cad: rnd(0.9, 1.08),
+      fl: [OUT[0], OUT[1] + 0.5], fr: [OUT[0], OUT[1] - 0.5], sw: -1, su: 0, sdur: 0.3, sf: [0, 0], st: [0, 0], last: 0, set: false,
     };
   });
   const ball: Ball = { x: 0, y: 0, h: 0, mode: "gone", holder: -1, to: -1, t: 0, dur: 1, from: [0, 0, 0], aim: [0, 0, 0], vx: 0, vy: 0, vh: 0, make: false };
   let offence = 0;            // which team has it
   let cleared = true;         // taken it back out past the arc since the change
   let nextMove = 2;           // the ball handler's next decision
+  let carrySnap = false;      // the ball's just appeared with its carrier (off-stage)
   let state: "off" | "arriving" | "playing" | "leaving" = "off";
   let present = 0;            // how much of them shows (fades at the gate)
   let dribble = 0;
@@ -152,9 +188,20 @@ export function createPickup(L: Layout) {
     /* coming and going */
     if (wanted && (state === "off" || state === "leaving")) {
       state = "arriving";
-      if (present < 0.01) players.forEach((p) => { p.x = OUT[0] + rnd(-3, 3); p.y = OUT[1] + rnd(-3, 3); });
+      /* (whoever's ball it is brings it: under his arm, in through the gate) */
+      const fresh = ball.mode === "gone";
+      ball.mode = "carried"; if (fresh) { ball.holder = 0; carrySnap = true; }
+      if (present < 0.01) players.forEach((p) => { p.x = OUT[0] + rnd(-3, 3); p.y = OUT[1] + rnd(-3, 3); p.fl = [p.x, p.y + 0.5]; p.fr = [p.x, p.y - 0.5]; p.sw = -1; });
     }
-    if (!wanted && (state === "playing" || state === "arriving")) { state = "leaving"; ball.mode = "gone"; }
+    if (!wanted && (state === "playing" || state === "arriving")) {
+      /* (and someone takes it home: whoever has it, or whoever's nearest
+         goes and gets it) */
+      state = "leaving";
+      if (ball.mode !== "carried") {
+        if (ball.mode !== "held") ball.holder = players.map((p, i) => [Math.hypot(p.x - ball.x, p.y - ball.y), i]).sort((a, b) => a[0] - b[0])[0][1];
+        ball.mode = "carried";
+      }
+    }
     if (state === "off") return;
 
     if (state === "arriving") {
@@ -166,8 +213,11 @@ export function createPickup(L: Layout) {
         const pastGate = p.x > GATE[0] - 1;
         p.tx = pastGate ? OUT[0] : GATE[0]; p.ty = (pastGate ? OUT[1] : GATE[1]) + (i - 2.5) * 0.8;
       });
+      /* (the one fetching the ball goes to it first) */
+      const c = players[ball.holder];
+      if (c && Math.hypot(ball.x - c.x, ball.y - c.y) > 2.5) { c.tx = ball.x; c.ty = ball.y; }
       if (players.every((p) => p.x > GATE[0])) present = Math.max(0, present - dt * 0.8);
-      if (present <= 0) { state = "off"; players.forEach((p) => { p.x = OUT[0]; p.y = OUT[1]; }); }
+      if (present <= 0) { state = "off"; ball.mode = "gone"; players.forEach((p) => { p.x = OUT[0]; p.y = OUT[1]; }); }
     } else {
       /* ── the play */
       const O = off();
@@ -263,26 +313,33 @@ export function createPickup(L: Layout) {
       }
     }
 
-    /* everyone moves toward where they're heading. Not straight at it:
-       where they're heading is followed smoothly (so a defender tracks
-       their man without twitching), and they speed up and slow down the
-       way a body does, cutting hard but never stopping dead. Close to
-       someone, they ease apart rather than being shoved */
+    /* everyone moves toward where they're heading, the way someone on
+       their feet does. Not gliding into place: once they're about where
+       they meant to be they stand, and stay standing until it's moved a
+       step or two off (then they go, and stop again), so a defender's
+       adjusting in steps, not sliding after his man. They jog to a spot
+       that's near and run to one that's far, pull up over the last few
+       feet as hard as a body can, and ease apart from anyone close */
     const playing = state === "playing";
     players.forEach((p) => {
-      p.sx += (p.tx - p.sx) * Math.min(1, dt * 4); p.sy += (p.ty - p.sy) * Math.min(1, dt * 4);
+      p.sx += (p.tx - p.sx) * Math.min(1, dt * 5); p.sy += (p.ty - p.sy) * Math.min(1, dt * 5);
       const dx = p.sx - p.x, dy = p.sy - p.y, d = Math.hypot(dx, dy);
-      const top = p.speed * (playing ? 1 : 0.45);
-      /* (arriving: slow down over the last few feet) */
-      const want = Math.min(top, d * 1.6);
+      const mine_ = ball.holder === idx(p) && ball.mode === "held";
+      const tight = mine_ || (p.team !== offence && ball.holder === p.man) || ball.mode === "loose";
+      if (p.set && d > (tight ? 1.1 : 2.2)) p.set = false;
+      if (!p.set && d < 0.45) p.set = true;
+      const top = p.speed * (playing ? (d > 9 || tight ? 1 : 0.68) : 0.4);
+      /* (what can still be stopped from, in the room there is) */
+      const want = p.set ? 0 : Math.min(top, Math.sqrt(2 * 20 * Math.max(0, d - 0.2)));
       let wx = d > 0.05 ? (dx / d) * want : 0, wy = d > 0.05 ? (dy / d) * want : 0;
       for (const q of players) {
         if (q === p) continue;
         const ox = p.x - q.x, oy = p.y - q.y, od = Math.hypot(ox, oy);
         if (od < 3 && od > 0.01) { const k = (3 - od) * 2.2; wx += (ox / od) * k; wy += (oy / od) * k; }
       }
-      const acc = 26;
-      const ax = wx - p.vx, ay = wy - p.vy, am = Math.hypot(ax, ay), step = Math.min(am, acc * dt);
+      /* (quicker to stop than to get going) */
+      const ax = wx - p.vx, ay = wy - p.vy, am = Math.hypot(ax, ay);
+      const acc = Math.hypot(wx, wy) < Math.hypot(p.vx, p.vy) ? 34 : 24, step = Math.min(am, acc * dt);
       if (am > 1e-4) { p.vx += (ax / am) * step; p.vy += (ay / am) * step; }
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.x = Math.max(0.5, Math.min(playing ? 44 : 70, p.x)); p.y = Math.max(-24, Math.min(24, p.y));
@@ -303,13 +360,86 @@ export function createPickup(L: Layout) {
       const vx = sp > 0.01 ? p.vx / sp : 0, vy = sp > 0.01 ? p.vy / sp : 0;
       const run = Math.max(0, Math.min(1, (sp - 5) / 5));
       const toward = Math.max(0, (vx * bx + vy * by) / bd + 0.35);
-      const w = run * Math.min(1, 0.3 + 0.7 * toward) * (p.team === offence ? 0.9 : 0.55);
+      /* (in a game they watch the ball; walking in or out, where they're going) */
+      const w = playing ? run * Math.min(1, 0.3 + 0.7 * toward) * (p.team === offence ? 0.9 : 0.55) : sp > 0.5 ? 1 : 0;
       const fx = vx * w + (bx / bd) * (1 - w), fy = vy * w + (by / bd) * (1 - w);
       const turn = wrapPi(Math.atan2(fy, fx) - p.hd);
-      if (Math.abs(turn) > 0.12) p.hd += Math.max(-dt * 4.5, Math.min(dt * 4.5, turn * Math.min(1, dt * 4)));
-      p.phase += dt * (0.4 + sp * 0.55) * p.cad;
-      /* (slowing to a stand, the feet come together: eased, not snapped) */
-      if (sp < 2) p.phase += (Math.round(p.phase / Math.PI) * Math.PI - p.phase) * Math.min(1, dt * 3 * (1 - sp / 2));
+      /* (the body can't turn far over feet that are planted: standing or
+         nearly, it turns as far as the hips allow and waits for a foot
+         to be picked up and put down round where it now belongs) */
+      const skew = (k: number) => {
+        const f = k === 0 ? p.fl : p.fr, ex = f[0] - p.x, ey = f[1] - p.y;
+        if (Math.hypot(ex, ey) < 0.25) return 0;
+        return wrapPi(Math.atan2(ey, ex) - (p.hd + (k === 0 ? Math.PI / 2 : -Math.PI / 2)));
+      };
+      if (Math.abs(turn) > 0.12) {
+        let by_ = Math.max(-dt * 4.5, Math.min(dt * 4.5, turn * Math.min(1, dt * 4)));
+        if (sp < 3) for (const k of [0, 1]) {
+          if (p.sw === k) continue;
+          const now = skew(k), then = wrapPi(now - by_);
+          if (Math.abs(then) > 0.8 && Math.abs(then) > Math.abs(now)) by_ = 0;
+        }
+        p.hd += by_;
+      }
+      /* ── the feet. Each has its place under the body (a little apart;
+         wider, down in a stance, for a defender), and is picked up once
+         the body's left it behind by half a step: put down again half a
+         step ahead of where its place will be when it lands. Which way
+         "ahead" is is just the way the body's going, whichever way it's
+         facing: so facing the ball and going sideways is a shuffle, and
+         going backwards a backpedal, without anyone being told. The
+         faster they go the longer the step and the quicker it's taken.
+         Standing, a foot's only moved if it's ended up well out of place
+         (a turn, a lean) */
+      /* (a defender who's on his man and not running after him is down
+         in a stance, arms out: most of all on the ball) */
+      const onBall = ball.holder === p.man && ball.mode === "held";
+      const stance = p.team !== offence && playing && ball.mode !== "loose" ? (onBall ? 1 : 0.55) * Math.max(0, 1 - sp / 9) : 0;
+      p.guard += (stance - p.guard) * Math.min(1, dt * 5);
+      const fwd: [number, number] = [Math.cos(p.hd), Math.sin(p.hd)];
+      const wdt = (p.team !== offence && playing ? 0.78 : 0.55);
+      const vh: [number, number] = sp > 0.01 ? [p.vx / sp, p.vy / sp] : [0, 0];
+      const stepLen = (1.3 + 0.12 * sp) * p.cad;
+      const home = (k: number, lead: number): [number, number] => {
+        const sgn = k === 0 ? 1 : -1;
+        return [p.x + p.vx * lead - fwd[1] * wdt * sgn, p.y + p.vy * lead + fwd[0] * wdt * sgn];
+      };
+      if (p.sw >= 0) {
+        const foot = p.sw === 0 ? p.fl : p.fr;
+        /* (hurried, if the foot that's down is being left behind: a
+           sudden cut, a shove) */
+        const down = p.sw === 0 ? p.fr : p.fl, reach = Math.hypot(down[0] - p.x, down[1] - p.y);
+        p.su = Math.min(1, p.su + dt / p.sdur * (1 + Math.max(0, reach - 1.2) * 2));
+        /* (where it'll come down is kept up to date as the body changes its mind) */
+        const h = home(p.sw, (1 - p.su) * p.sdur);
+        p.st = [h[0] + vh[0] * stepLen * 0.5 * Math.min(1, sp / 2), h[1] + vh[1] * stepLen * 0.5 * Math.min(1, sp / 2)];
+        const e = p.su * p.su * (3 - 2 * p.su);
+        foot[0] = p.sf[0] + (p.st[0] - p.sf[0]) * e; foot[1] = p.sf[1] + (p.st[1] - p.sf[1]) * e;
+        if (p.su >= 1) { p.last = p.sw; p.sw = -1; }
+      }
+      if (p.sw < 0) {
+        let pickF = -1, best = 0;
+        for (const k of [1 - p.last, p.last]) {
+          const foot = k === 0 ? p.fl : p.fr, h = home(k, 0);
+          const ex = h[0] - foot[0], ey = h[1] - foot[1];
+          const behind = ex * vh[0] + ey * vh[1], err = Math.hypot(ex, ey);
+          /* moving: once it's half a step behind (a little sooner, for
+             the one whose turn it is); standing: only if it's well out */
+          const due = sp > 1 ? behind / (stepLen * (k === p.last ? 0.5 : 0.36)) : 0;
+          const out = sp > 1 ? err / 1.6 : Math.max(err / 0.6, Math.abs(skew(k)) / 0.5);
+          const score = Math.max(due, out);
+          if (score >= 1 && score > best) { best = score; pickF = k; }
+        }
+        if (pickF >= 0) {
+          const foot = pickF === 0 ? p.fl : p.fr;
+          p.sw = pickF; p.su = 0; p.sf = [foot[0], foot[1]];
+          p.sdur = (sp < 1 ? 0.24 : 0.38 - 0.11 * Math.min(1, sp / 10)) / Math.sqrt(p.cad);
+        }
+      }
+      /* (for the arms, which swing against the feet: how far the one
+         foot's ahead of the other, along the way they face) */
+      const lead = ((p.fl[0] - p.fr[0]) * fwd[0] + (p.fl[1] - p.fr[1]) * fwd[1]) / 2.6;
+      p.phase = Math.asin(Math.max(-1, Math.min(1, lead)));
       if (ball.mode !== "shot") p.pose = Math.max(0, p.pose - dt * 2);
     });
 
@@ -320,8 +450,22 @@ export function createPickup(L: Layout) {
       const side = 0.9, f = Math.cos(h.hd), s = Math.sin(h.hd);
       ball.x = h.x + f * 0.9 - s * side; ball.y = h.y + s * 0.9 + f * side;
       /* (its own beat: a dribble doesn't stop when they do) */
+      const beat = Math.floor(dribble / Math.PI);
       dribble += dt * 4.2;
       ball.h = 0.4 + Math.abs(Math.sin(dribble)) * 2.6;
+      if (Math.floor(dribble / Math.PI) !== beat) hear("bounce", 0.75);
+    } else if (ball.mode === "carried") {
+      /* under the arm, at the hip. Left lying somewhere, it stays there
+         (rolling to a stop, dropping to the ground) until whoever's
+         fetching it gets to it, and then comes up into his hands */
+      const h = players[ball.holder], f = Math.cos(h.hd), s = Math.sin(h.hd);
+      const ax = h.x + f * 0.35 - s * 0.85, ay = h.y + s * 0.35 + f * 0.85;
+      if (carrySnap) { ball.x = ax; ball.y = ay; ball.h = 3.2; carrySnap = false; }
+      const got = Math.hypot(ball.x - h.x, ball.y - h.y) < 3;
+      if (got) {
+        const k = Math.min(1, dt * 9);
+        ball.x += (ax - ball.x) * k; ball.y += (ay - ball.y) * k; ball.h += (3.2 - ball.h) * k;
+      } else ball.h = Math.max(0.4, ball.h - dt * 14);
     } else if (ball.mode === "pass" || ball.mode === "shot") {
       ball.t += dt;
       if (ball.mode === "pass") { const b = players[ball.to]; ball.aim = [b.x, b.y, 4]; }
@@ -336,15 +480,17 @@ export function createPickup(L: Layout) {
           /* through the net: dropped to the court under the rim, and the
              other team takes it out */
           Object.assign(ball, { mode: "loose", vx: rnd(-1, 1), vy: rnd(-1, 1), vh: -2, make: true });
+          hear("net");
         } else {
           /* off the rim */
           const a = rnd(-1.4, 1.4) + Math.PI * 0;
           Object.assign(ball, { mode: "loose", vx: Math.cos(a) * rnd(8, 14), vy: Math.sin(a) * rnd(8, 14), vh: rnd(4, 8), make: false });
+          hear("rim");
         }
       }
     } else if (ball.mode === "loose") {
       ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.h += ball.vh * dt; ball.vh -= 32 * dt;
-      if (ball.h < 0.4) { ball.h = 0.4; ball.vh = Math.abs(ball.vh) * 0.55; ball.vx *= 0.8; ball.vy *= 0.8; if (ball.vh < 1.5) ball.vh = 0; }
+      if (ball.h < 0.4) { if (ball.vh < -4) hear("bounce", Math.min(1, -ball.vh / 22)); ball.h = 0.4; ball.vh = Math.abs(ball.vh) * 0.55; ball.vx *= 0.8; ball.vy *= 0.8; if (ball.vh < 1.5) ball.vh = 0; }
       ball.x = Math.max(0.5, Math.min(44, ball.x)); ball.y = Math.max(-24, Math.min(24, ball.y));
       /* whoever gets to it first; after a make, the other team */
       const grab = players
@@ -361,6 +507,13 @@ export function createPickup(L: Layout) {
     }
   }
 
+  /* what there is to hear of it, since last asked: the ball on the court
+     (and how hard, 0..1), off the rim, through the net; each with where
+     across the scene it was */
+  const heard: { k: "bounce" | "rim" | "net"; x: number; s: number }[] = [];
+  function hear(k: "bounce" | "rim" | "net", s = 1) { if (heard.length < 6) heard.push({ k, x: W(ball.x, ball.y)[0], s: s * present }); }
+  const sounds = () => heard.splice(0);
+
   /* where they are, for the pigeons */
   const threats = (): [number, number, number][] => present > 0.1 ? players.map((p) => [...W(p.x, p.y), 6] as [number, number, number]) : [];
   const busy = () => state !== "off";
@@ -368,24 +521,46 @@ export function createPickup(L: Layout) {
   /* for the shader, like the passers-by: (x, y, heading, phase),
      (top rgb, kind 3 running / 4 arms up), (hair rgb, presence); and the
      ball (x, y, height ft, on) */
-  const A = new Float32Array(PLAYERS * 4), B = new Float32Array(PLAYERS * 4), C = new Float32Array(PLAYERS * 4), D = new Float32Array(PLAYERS * 4), Bl = new Float32Array(4);
+  const A = new Float32Array(PLAYERS * 4), B = new Float32Array(PLAYERS * 4), C = new Float32Array(PLAYERS * 4), D = new Float32Array(PLAYERS * 4), Ft = new Float32Array(PLAYERS * 4), G = new Float32Array(PLAYERS * 4), H = new Float32Array(PLAYERS * 4), Bl = new Float32Array(4);
   function pack() {
     players.forEach((p, i) => {
       const [wx, wy] = W(p.x, p.y);
       /* (court x runs back from the baseline: headings flip with it) */
       /* the stride's sway and the shoulders' turn, as the passers-by,
          fading as they slow; standing, the feet settle */
-      const go = Math.min(1, Math.hypot(p.vx, p.vy) / 8);
-      const sway = Math.sin(p.phase) * 0.09 * go * ft, twist = Math.sin(p.phase) * 0.1 * go;
-      const hd = Math.PI - p.hd;
-      A.set(state === "off" ? [9, 9, 0, 0] : [wx - Math.sin(hd) * sway, wy + Math.cos(hd) * sway, hd + twist, p.phase], i * 4);
+      /* the shoulders turn a little against the legs; and the feet, each
+         where it is on the court, given in the body's own frame (ahead,
+         to its left; in the figure's drawn feet) so they stay put on the
+         ground while the body goes over them */
+      const hd = Math.PI - p.hd + p.phase * 0.09;
+      const F: [number, number] = [Math.cos(hd), Math.sin(hd)];
+      const loc = (f: [number, number]): [number, number] => {
+        let ddx = -(f[0] - p.x), ddy = f[1] - p.y;
+        /* (a foot a long way out isn't drawn as far out as it is: seen
+           from above, a leg at full stretch has its knee bent and its
+           heel coming up, and the foot's nearer the body than the
+           stride is long. Past REACH_NEAR it gains only part of the
+           distance, and never passes REACH_MAX) */
+        const r = Math.hypot(ddx, ddy);
+        if (r > REACH_NEAR) { const k = (REACH_NEAR + (REACH_MAX - REACH_NEAR) * (1 - Math.exp(-(r - REACH_NEAR) / (REACH_MAX - REACH_NEAR)))) / r; ddx *= k; ddy *= k; }
+        return [(ddx * F[0] + ddy * F[1]) / 1.5, (-ddx * F[1] + ddy * F[0]) / 1.5];
+      };
+      const a = loc(p.fl), b = loc(p.fr);
+      /* (the court's drawn mirrored, so their right foot is the figure's
+         left: each foot always on its own hip, never swapped) */
+      Ft.set([...b, ...a], i * 4);
+      G.set([p.hat, p.kit + 0.24 * p.guard, p.shoe, p.shorts], i * 4);
+      H.set([...p.hatC, p.trim], i * 4);
+      A.set(state === "off" ? [9, 9, 0, 0] : [wx, wy, hd, p.phase], i * 4);
       B.set([...p.top, p.pose > 0.5 ? 4 : 3], i * 4);
       C.set([...p.hair, present], i * 4);
       D.set([...p.skin, p.hairK], i * 4);
     });
     const [bx, by] = W(ball.x, ball.y);
-    Bl.set(state === "playing" && ball.mode !== "gone" ? [bx, by, ball.h, 1] : [9, 9, 0, 0]);
-    return { A, B, C, D, Bl };
+    Bl.set(state !== "off" && ball.mode !== "gone" && present > 0.5 ? [bx, by, ball.h, 1] : [9, 9, 0, 0]);
+    return { A, B, C, D, Ft, G, H, Bl };
   }
-  return { update, pack, threats, busy };
+  /* (for checking: everyone's body, feet and speed) */
+  const debug = () => players.map((p) => ({ x: p.x, y: p.y, v: Math.hypot(p.vx, p.vy), fl: [...p.fl], fr: [...p.fr], sw: p.sw, team: p.team }));
+  return { update, pack, threats, busy, sounds, debug };
 }

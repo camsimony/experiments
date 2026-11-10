@@ -11,7 +11,10 @@ import SoundMixer from "./sound/SoundMixer";
    The top-down court, opening on today's season in New York, with a
    quiet control underneath to turn the year by hand. */
 
-export default function CourtScene() {
+/* the paces the drawing-in can be replayed at */
+const PACES = [1, 0.5, 0.25, 0.1];
+
+export default function CourtScene({ onDrawn, onRedraw }: { onDrawn?: () => void; onRedraw?: () => void }) {
   const [season, setSeason] = useState<number | null>(null);
   /* the half court, chosen over the full court (2026-11-07); the full
      court layout is kept in layouts.ts as FULL_COURT */
@@ -22,9 +25,23 @@ export default function CourtScene() {
   const [time, setTime] = useState(0);
   /* testing: send a train now */
   const [trainCall, setTrainCall] = useState(0);
+  /* and the bus */
+  const [busCall, setBusCall] = useState(0);
   /* the scene: being built, running, or not able to run here (no WebGL2,
      or a machine it's too much for), when a still stands in */
   const [scene, setScene] = useState<"building" | "live" | "still">("building");
+  /* the scene opens by being drawn in; the rest of the page (the
+     lettering, these controls) waits for it, then eases in */
+  const [drawn, setDrawn] = useState(false);
+  const done = () => { setDrawn(true); onDrawn?.(); };
+  /* drawn in again, on asking, at a pace of the visitor's choosing */
+  const [redraw, setRedraw] = useState(0);
+  const [pace, setPace] = useState(0);
+  const replay = () => {
+    /* (nothing to replay where motion's turned down: it isn't drawn in there) */
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setRedraw((n) => n + 1); onRedraw?.();
+  };
   useEffect(() => {
     /* (dev: ?season=0..3&time=0..2 to open on a given one) */
     const q = new URLSearchParams(window.location.search);
@@ -70,13 +87,13 @@ export default function CourtScene() {
           <img src={`${import.meta.env.BASE_URL}court/top-down.jpg`} alt="A New York park basketball court seen from above, under plane trees." className="absolute inset-0 h-full w-full object-cover" />
         ) : season !== null && (
           <div className={`absolute inset-0 transition-opacity duration-500 ease-out ${scene === "live" ? "opacity-100" : "opacity-0"}`}>
-            <TopDownCourt season={season} tod={TIMES[time].tod} trainCall={trainCall} sound={soundOn ? sound.current : null} layout={LAYOUTS[layout]} paint={PAINTS[paint]} label="A New York park basketball court seen from above, under plane trees." onReady={() => setScene("live")} onFail={() => { setScene("still"); sound.current?.setEnabled(false); setSoundOn(false); }} />
+            <TopDownCourt season={season} tod={TIMES[time].tod} trainCall={trainCall} busCall={busCall} sound={soundOn ? sound.current : null} layout={LAYOUTS[layout]} paint={PAINTS[paint]} label="A New York park basketball court seen from above, under plane trees." onReady={() => setScene("live")} onDrawn={done} redraw={redraw} drawSpeed={PACES[pace]} onFail={() => { done(); setScene("still"); sound.current?.setEnabled(false); setSoundOn(false); }} />
           </div>
         )}
       </div>
       {/* (the seasons, the light and the sound are the live scene's: a
           still has none to change) */}
-      <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 ${scene === "still" ? "invisible" : ""}`} aria-hidden={scene === "still"}>
+      <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-medium transition-opacity delay-500 duration-700 ease-out motion-reduce:transition-none ${scene === "still" ? "invisible" : ""} ${drawn ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={scene === "still"}>
         <div role="radiogroup" aria-label="Season" className="flex items-center gap-1">
           {SEASONS.map((s, i) => (
             <button
@@ -116,6 +133,32 @@ export default function CourtScene() {
         >
           Train
         </button>
+        <button
+          type="button"
+          onClick={() => setBusCall((n) => n + 1)}
+          className="rounded-full px-2.5 py-1 text-[12px] text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+        >
+          Bus
+        </button>
+        {/* the drawing-in, again; and how fast (each press slower, then
+            back round), which plays it at once */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={replay}
+            className="rounded-full py-1 pl-2.5 pr-1 text-[12px] text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+          >
+            Replay
+          </button>
+          <button
+            type="button"
+            aria-label={`Replay speed: ${PACES[pace]}×. Change speed and replay`}
+            onClick={() => { setPace((i) => (i + 1) % PACES.length); replay(); }}
+            className="rounded-full py-1 pl-1 pr-2.5 text-[12px] tabular-nums text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+          >
+            {PACES[pace]}×
+          </button>
+        </div>
         {/* the sound: off until turned on */}
         <button
           type="button"
@@ -131,6 +174,7 @@ export default function CourtScene() {
           sound={() => sound.current}
           ensureOn={() => { if (!sound.current?.enabled) toggleSound(true); }}
           sendTrain={() => setTrainCall((n) => n + 1)}
+          sendBus={() => setBusCall((n) => n + 1)}
         />
       </div>
     </div>

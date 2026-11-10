@@ -84,6 +84,23 @@ export function createTraffic(L: Layout, night: () => number) {
     v.rx = x; v.ry = y + off; v.fx = x; v.fy = v.ry - v.wb * ft;
   };
 
+  /* in (or into) the moving lane: not parked, not still at the curb */
+  const inLane = (q: Vehicle) => q.phase !== "parked" && q.phase !== "boarding" && q.phase !== "leave"
+    && !(q.kind === "bus" && q.phase !== "drive") && Math.abs(mid(q).x - lane) < 5 * ft;
+  /* a look over the shoulder, for pulling out from the curb: is q (in the
+     lane) far enough back to let v out? Not alongside, and behind by
+     more than room ft plus however far it'd come in secs */
+  const shoulderClear = (v: Vehicle, q: Vehicle, room: number, secs: number) => {
+    const m = mid(v), mq = mid(q);
+    const rear = m.y + v.len * ft, qFront = mq.y - q.len * ft, qRear = mq.y + q.len * ft;
+    if (qRear < m.y - (v.len + 3) * ft) return true;        // well ahead, away up the street
+    /* (stopped behind, letting it out, even with its nose up past the
+       bus's back: the bus's back stays in at the curb as it pulls away) */
+    if (q.v < 1.5 && qFront > m.y) return true;
+    if (qFront < rear + 2 * ft) return false;                // alongside
+    return (qFront - rear) / ft > room + q.v * secs;
+  };
+
   /* the deli-side spaces, starting out full */
   const spots: Spot[] = (L.cars ?? []).filter((c) => deliSide(L, c)).map((c, i) => {
     const v = V[i];
@@ -102,7 +119,9 @@ export function createTraffic(L: Layout, night: () => number) {
     const x = bus ? curb : lane;
     if (!roomAt(x)) return;
     const len = bus ? 18 : 7.3, wb = bus ? 22 : 9;
-    const y = H + (len + 4) * ft;
+    /* (the bus sets out well below the frame, a few seconds' drive out
+       of sight: it's heard coming before it's seen) */
+    const y = H + (len + 4 + (bus ? 100 : 0)) * ft;
     Object.assign(v, {
       on: true, kind: bus ? "bus" : "car", fx: x, fy: y - wb * ft, rx: x, ry: y, v: bus ? 17 : rnd(19, 25), t: 0, signal: 0, brake: 0,
       col: bus ? BUS : [0, 0, 1, 1, 2, 3, 4][Math.floor(Math.random() * 7)],
@@ -185,7 +204,14 @@ export function createTraffic(L: Layout, night: () => number) {
         if (q === v) continue;
         if (v.phase === "in" && v.kind === "park" && (q.phase === "parked" || q.phase === "boarding" || q.phase === "leave")) continue;
         const mq = mid(q);
-        if (mq.y >= m.y || Math.abs(mq.x - m.x) > 7.2 * ft) continue;
+        /* (a bus pulling out from the stop: yield to it, as if it were
+           in the lane already) */
+        /* (not if it's already alongside: then it carries on by, and the
+           bus waits for it) */
+        const yieldTo = q.kind === "bus" && (q.phase === "out" || (q.phase === "dwell" && q.signal < 0 && q.t > 10)) && v.phase !== "in"
+          && m.y - v.len * ft > mq.y + (q.len - 2) * ft;
+        const qx = yieldTo ? lane : mq.x;
+        if (mq.y >= m.y || Math.abs(qx - m.x) > 7.2 * ft) continue;
         const gap = (m.y - mq.y) / ft - v.len - q.len;
         want = Math.min(want, Math.max(0, (gap - 7) * 1.1), q.v + Math.max(0, gap - 12) * 0.6);
       }
@@ -237,7 +263,8 @@ export function createTraffic(L: Layout, night: () => number) {
         want = Math.min(want, Math.max(0, toSpot * 0.45 + 0.4));
         if (toSpot < 0.4 && v.v < 0.7) {
           place(v, s.x, s.y);
-          v.phase = "parked"; v.v = 0; v.signal = 0; v.stay = rnd(60, 180);
+          // (not long, if the bus is waiting on the space)
+          v.phase = "parked"; v.v = 0; v.signal = 0; v.stay = busDue ? rnd(2, 5) : rnd(60, 180);
           continue;
         }
       }
@@ -264,14 +291,17 @@ export function createTraffic(L: Layout, night: () => number) {
           /* away when it's been long enough and nothing's alongside or
              coming up behind (the longer it's waited, the less room it
              asks for: a bus doesn't wait all day) */
-          const room = Math.max(25, 70 - Math.max(0, v.t - 12) * 3) * ft;
-          const clear = !live.some((q) => q !== v && Math.abs(mid(q).x - lane) < 4 * ft && mid(q).y > m.y - (v.len + 4) * ft && mid(q).y < m.y + room);
+          const room = Math.max(12, 30 - Math.max(0, v.t - 12) * 1.5);
+          const clear = !live.some((q) => q !== v && inLane(q) && !shoulderClear(v, q, room, 3.5));
           if (v.t > 9) v.signal = -1;
           if (v.t > 10 && clear) { v.phase = "out"; v.t = 0; }
         }
         if (v.phase === "out") {
           tx = lane;
           want = Math.min(want, 4 + v.t * 3);
+          /* (and if someone's come alongside after all, it waits, half
+             out, for them to go by) */
+          if (Math.abs(v.fx - lane) > 0.5 * ft && live.some((q) => q !== v && inLane(q) && !shoulderClear(v, q, 0, 0))) { want = 0; tx = v.fx; }
           if (Math.abs(v.fx - lane) < 0.3 * ft && Math.abs(v.rx - lane) < 0.6 * ft) { v.phase = "drive"; v.signal = 0; }
         }
       }
@@ -318,6 +348,13 @@ export function createTraffic(L: Layout, night: () => number) {
   const onDriver = (fn: (door: [number, number], ahead: [number, number], done: () => void) => boolean) => { driver = fn; };
   /* (dev: window.__traffic.bus() / .car() / .park() / .leave()) */
   const leave = () => { const v = V.find((q) => q.on && q.phase === "parked"); if (v) v.stay = 0; };
+  /* send the bus now: whoever's parked at its stop is on their way to
+     the car at once, and it sets out as soon as the curb's clear */
+  const callBus = () => {
+    if (busOn()) return;
+    busDue = true; nextBus = 0;
+    for (const v of V) if (v.on && v.phase === "parked") v.stay = 0;
+  };
   /* the bus, for the sound: where it is, what it's doing and for how
      long, and how far its nose is from the stop (ft) */
   const busState = () => {
@@ -326,5 +363,5 @@ export function createTraffic(L: Layout, night: () => number) {
     const m = mid(v);
     return { x: m.x, y: m.y, phase: v.phase, t: v.t, toStop: (m.y - v.len * ft - stopFront) / ft, v: v.v };
   };
-  return { update, pack, onBoard, onDriver, bodies, busState, bus: () => { busDue = true; nextBus = 0; }, car: () => spawn(false), park: spawnParker, leave };
+  return { update, pack, onBoard, onDriver, bodies, busState, bus: callBus, car: () => spawn(false), park: spawnParker, leave };
 }

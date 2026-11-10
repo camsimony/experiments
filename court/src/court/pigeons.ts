@@ -27,7 +27,7 @@ type Bird = {
      the wait to the next one; a turn in place */
   s0x: number; s0y: number; s1x: number; s1y: number; su: number; sw: number; turn: number;
   /* in the air: where it sits in the flock, and how late it goes up */
-  ox: number; oy: number; delay: number; sx: number; sy: number;
+  ox: number; oy: number; delay: number; sx: number; sy: number; sh: number;
   /* the wings: 0 folded .. 1 spread, and the flap's phase */
   wing: number; flap: number;
   variant: number;
@@ -63,7 +63,7 @@ export function createFlock(L: Layout, night: boolean) {
       x, y, hd: Math.random() * Math.PI * 2, h: 0,
       tx: x, ty: y, next: rnd(0, 3), peck: 0, step: 0,
       s0x: x, s0y: y, s1x: x, s1y: y, su: 1, sw: 0, turn: 0,
-      ox: rnd(-1, 1), oy: rnd(-1, 1), delay: rnd(0, 0.6), sx: x, sy: y,
+      ox: rnd(-1, 1), oy: rnd(-1, 1), delay: rnd(0, 0.6), sx: x, sy: y, sh: 0,
       wing: 0, flap: Math.random() * 6,
       /* mostly the blue-grey with two black bars; a dark checker or two,
          a white one, a red-brown one */
@@ -85,14 +85,15 @@ export function createFlock(L: Layout, night: boolean) {
     const side = Math.random() < 0.5 ? 1 : -1, nx = -dy / d * side, ny = dx / d * side;
     const bow = Math.max(0.12, d * 0.6);
     flight = {
-      t0: t, dur: Math.max(4.5, (d + bow) / (24 * L.ft) * 0.9),
+      /* (leaving for the night, in a hurry: gone in a couple of seconds) */
+      t0: t, dur: to === away ? Math.max(2.2, (d + bow) / (24 * L.ft) * 0.4) : Math.max(4.5, (d + bow) / (24 * L.ft) * 0.9),
       p0: from,
       c1: [from[0] + dx * 0.1 + nx * bow, from[1] + dy * 0.1 + ny * bow],
       c2: [from[0] + dx * 0.9 + nx * bow * 0.7, from[1] + dy * 0.9 + ny * bow * 0.7],
       p3: to,
     };
     landAt = to;
-    birds.forEach((b) => { b.delay = state === "ground" ? rnd(0, 0.7) : rnd(0, 0.3); b.ox = rnd(-1, 1); b.oy = rnd(-1, 1); b.sx = b.x; b.sy = b.y; });
+    birds.forEach((b) => { b.delay = state === "ground" ? rnd(0, 0.7) : rnd(0, 0.3); b.ox = rnd(-1, 1); b.oy = rnd(-1, 1); b.sx = b.x; b.sy = b.y; b.sh = b.h; });
     state = "fly";
   };
   const elsewhere = () => {
@@ -106,15 +107,21 @@ export function createFlock(L: Layout, night: boolean) {
   function update(dt: number, night: number, pointer: [number, number] | null, train: boolean, threats: [number, number, number][] = [], courtBusy = false) {
     t += dt;
     busyNow = courtBusy;
+    /* they go as soon as the dark starts coming down (after dusk, as the
+       moonlight takes over), quickly, so none are still about once it's
+       night; and only come back once it's light again. Going from the
+       air too: a flight between spots turns for home */
+    const leave = night > 0.02, back = night < 0.01;
+    if (leave && state === "fly" && landAt !== away) go(away);
     if (state === "ground") {
       nextGo -= dt;
       /* the pointer, or someone walking right through them (a dog, from further off) */
       const scared = (pointer && birds.some((b) => Math.hypot(b.x - pointer[0], b.y - pointer[1]) < 7 * L.ft))
         || threats.some(([x, y, r]) => birds.some((b) => Math.hypot(b.x - x, b.y - y) < r * L.ft));
       const rumble = train && underEl(L, spot) && Math.random() < dt * 0.8;
-      if (night > 0.55) go(away);
+      if (leave) go(away);
       else if (nextGo <= 0 || scared || rumble) { spot = elsewhere(); go(spot); }
-    } else if (state === "away" && night < 0.35) {
+    } else if (state === "away" && back) {
       spot = S[Math.floor(Math.random() * S.length)];
       go(spot);
     }
@@ -144,11 +151,13 @@ export function createFlock(L: Layout, night: boolean) {
           if (Math.hypot(vx, vy) > 1e-5) b.hd += wrapPi(Math.atan2(vy, vx) - b.hd) * Math.min(1, dt * 8);
         }
         b.x = lx; b.y = ly;
-        b.h = Math.pow(Math.sin(Math.PI * u), 0.6) * 22;
+        /* (turned in the air, it doesn't drop to climb again: it keeps
+           the height it had while it joins the new flight) */
+        b.h = Math.max(Math.pow(Math.sin(Math.PI * u), 0.6) * 22, b.sh * (1 - jk));
         /* wings: beating hard going up and coming in, a glide between with
            now and then a few beats */
-        const beat = u < 0.25 || u > 0.85 || Math.sin(t * 0.9 + b.ox * 5) > 0.75;
-        const flying = u > 0 && u < 1;
+        const beat = (u <= 0 && b.h > 0.5) || u < 0.25 || u > 0.85 || Math.sin(t * 0.9 + b.ox * 5) > 0.75;
+        const flying = (u > 0 && u < 1) || b.h > 0.5;
         b.wing += ((flying ? 1 : 0) - b.wing) * Math.min(1, dt * 10);
         b.flap += dt * (beat ? 22 : 0);
         /* (gliding, the wings held out flat: mid-stroke) */

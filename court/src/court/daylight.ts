@@ -52,8 +52,9 @@ export function lightAt(s: Season, tod: number) {
   let shadeCol = lerp3(s.shadeCol, [0.3, 0.3, 0.46], dusk * 0.85);
   // night: no sun, a cool moonlit wash
   // (dark, so the lights are what you see; snow still a little paler)
-  sunCol = lerp3(sunCol, [0.1, 0.12, 0.2], night);
-  shadeCol = lerp3(shadeCol, [0.075, 0.09, 0.155], night);
+  // (a touch brighter than it was, ~30%: it read too dark)
+  sunCol = lerp3(sunCol, [0.13, 0.156, 0.26], night);
+  shadeCol = lerp3(shadeCol, [0.098, 0.117, 0.2], night);
   return {
     sunCol,
     shadeCol,

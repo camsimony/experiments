@@ -31,7 +31,11 @@ export type SoundFrame = {
      ("in" coming up the street, "dwell" at the stop, "out" pulling away,
      "drive" gone on), how long it's been at it, and how far from the
      stop (ft) */
-  bus: { pan: number; phase: string; t: number; toStop: number } | null;
+  bus: { pan: number; phase: string; t: number; toStop: number; v: number } | null;
+  /* the court: what's just happened on it (the ball bounced, off the rim
+     or through the net; a board popped, landed, or come down on its
+     own), where and how hard; and the fastest board rolling (ft/s) */
+  court: { heard: { k: string; pan: number; s: number }[]; roll: { v: number; pan: number } | null };
 };
 
 const BASE = `${import.meta.env.BASE_URL}sounds/court/`;
@@ -54,6 +58,8 @@ export const VOICE_LIST: VoiceInfo[] = [
   { key: "scape", label: "Soundscape", group: "City" },
   { key: "train", label: "El train", group: "Events", shot: true },
   { key: "bus", label: "Bus at the stop", group: "Events", shot: true },
+  { key: "ball", label: "Basketball", group: "Events", shot: true },
+  { key: "skate", label: "Skateboards", group: "Events", shot: true },
   { key: "wings", label: "Pigeon wings", group: "Events", shot: true },
   { key: "coo", label: "Pigeons cooing", group: "Events", hold: true },
   { key: "wind", label: "Wind", group: "Air", hold: true },
@@ -68,8 +74,8 @@ export type MixerState = {
   scapeDay: string; scapeNight: string; train: string;
 };
 export const DEFAULT_MIX: MixerState = {
-  master: 1,
-  level: { scape: 1, train: 1, bus: 1, wings: 1, coo: 1, wind: 0.6, leaves: 0.6, birds: 0.7, cicada: 0.7, crickets: 0.7 },
+  master: 0.7,
+  level: { scape: 0.39, train: 0.3, bus: 0.23, ball: 0.36, skate: 0.24, wings: 0.13, coo: 0.73, wind: 0.33, leaves: 0.29, birds: 0.58, cicada: 0, crickets: 0.2 },
   mute: {}, solo: {}, hold: {},
   scapeDay: "Brooklyn street", scapeNight: "Bushwick rooftop, night", train: "Astoria el, overhead",
 };
@@ -83,6 +89,34 @@ const seasonK = (y: number, s: number) => {
 };
 
 type Loop = { g: GainNode; p?: StereoPannerNode; f?: BiquadFilterNode; src?: AudioBufferSourceNode; file?: string };
+
+/* how the bus sounds from where it is. Far off it's quiet and dull, the
+   top of it lost to the distance; it opens up and comes on as it nears
+   the stop, and closes again as it goes. Its pitch sits a little high
+   while it's coming at speed and settles as it brakes, then sags as it
+   pulls away (the Doppler shift, leaned on a little: at a bus's pace
+   the real one is under two percent) */
+const BUS_FAR = 180, BUS_GONE = 110, BUS_PACE = 19;   // ft down the street when it sets out; ft up it when it's gone; ft/s
+function busHeard(name: string, b: SoundFrame["bus"]) {
+  /* at the stop: the air let go as it settles (and again, lower and
+     softer, at the doors), over the engine ticking while it waits */
+  if (name === "air") return { gain: 0.5, cut: 16000, rate: 1 };
+  if (name === "doors") return { gain: 0.32, cut: 9000, rate: 0.8 };
+  if (name === "idle") return { gain: b && (b.phase === "dwell" || (b.phase === "in" && b.toStop < 2)) ? 0.45 : 0, cut: 16000, rate: 1 };
+  const level = 0.9;
+  if (!b) return { gain: level, cut: 16000, rate: 1 };
+  const coming = name === "arrive";
+  // (the arrival's still ringing once it's stopped, and the pull-away's
+  // idling before it moves: both right here)
+  const near = coming ? (b.phase === "in" ? 1 - clamp(b.toStop / BUS_FAR, 0, 1) : 1)
+                      : 1 - 0.5 * clamp(-b.toStop / BUS_GONE, 0, 1);
+  const pace = clamp(b.v / BUS_PACE, 0, 1) * (coming ? (b.phase === "in" ? 1 : 0) : -1);
+  return {
+    gain: level * (0.05 + 0.95 * Math.pow(near, 1.6)),
+    cut: 500 * Math.pow(32, Math.pow(near, 0.8)),   // 500Hz → 16kHz
+    rate: 1 + 0.03 * pace,
+  };
+}
 
 export class CourtSound {
   private ctx: AudioContext | null = null;
@@ -98,8 +132,8 @@ export class CourtSound {
   private trainSrc: { src: AudioBufferSourceNode; g: GainNode; p: StereoPannerNode } | null = null;
   /* the bus: which of its three sounds have played for this one, and
      the ones still sounding (panned with it) */
-  private busDone = { arrive: false, doors: false, leave: false };
-  private busSrcs: { src: AudioBufferSourceNode; p: StereoPannerNode }[] = [];
+  private busDone = { arrive: false, air: false, doors: false, leave: false };
+  private busSrcs: { name: string; src: AudioBufferSourceNode; g: GainNode; lp: BiquadFilterNode; p: StereoPannerNode }[] = [];
   private on = false;
   mix: MixerState = JSON.parse(JSON.stringify(DEFAULT_MIX));
 
@@ -140,11 +174,16 @@ export class CourtSound {
     this.out.connect(this.master).connect(comp).connect(ctx.destination);
     this.noise = this.makeNoise();
     /* the recordings, all fetched now (they're small) */
-    [...Object.values(SCAPES), ...Object.values(TRAINS), "wings-1", "wings-2", "coo-1", "bus-arrive", "bus-doors", "bus-leave"].forEach((f) => this.buffer(f));
+    [...Object.values(SCAPES), ...Object.values(TRAINS), "wings-1", "wings-2", "coo-1", "bus-arrive", "bus-air", "bus-idle", "bus-leave",
+      "ball-bounce-1", "ball-bounce-2", "ball-bounce-3", "ball-bounce-4", "ball-rim-1", "ball-rim-2", "ball-rim-3", "ball-net", "skate-pop", "skate-land", "skate-roll"].forEach((f) => this.buffer(f));
     /* the soundscape: two loops, day and night, crossfaded */
     this.loops.scapeDay = this.loop();
     this.loops.scapeNight = this.loop();
     this.loops.coo = this.loop(true);
+    /* a board's wheels on the court: always turning, heard when one rolls
+       (the recording repeats between these two points, clear of its ends) */
+    this.loops.roll = this.loop(true);
+    this.playLoop(this.loops.roll, "skate-roll", [0.25, 10.25]);
     /* the air */
     this.loops.wind = this.noiseLoop("bandpass", 500, 0.6);
     this.loops.leaves = this.noiseLoop("highpass", 2600, 0.5);
@@ -178,7 +217,7 @@ export class CourtSound {
     return { g, p };
   }
   /* point a loop at a file: the new one fades in over the old */
-  private playLoop(L: Loop, file: string) {
+  private playLoop(L: Loop, file: string, span?: [number, number]) {
     if (L.file === file) return;
     L.file = file;
     this.buffer(file).then((buf) => {
@@ -187,7 +226,8 @@ export class CourtSound {
       const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
       const fade = ctx.createGain(); fade.gain.value = 0;
       src.connect(fade).connect(L.g);
-      src.start(0, Math.random() * buf.duration * 0.8);
+      if (span) { src.loopStart = span[0]; src.loopEnd = span[1]; }
+      src.start(0, span ? span[0] + Math.random() * (span[1] - span[0]) : Math.random() * buf.duration * 0.8);
       fade.gain.setTargetAtTime(1, ctx.currentTime, 0.8);
       if (old) { const og = (old as unknown as { _fade: GainNode })._fade; og?.gain.setTargetAtTime(0, ctx.currentTime, 0.8); old.stop(ctx.currentTime + 5); }
       (src as unknown as { _fade: GainNode })._fade = fade;
@@ -258,21 +298,50 @@ export class CourtSound {
     if (k <= 0) return;
     this.shot(Math.random() < 0.5 ? "wings-1" : "wings-2", 0.9 * k, pan, rnd(0.92, 1.08));
   }
-  /* the bus (a real MTA bus at a stop on 8th Avenue, in three cuts):
-     the approach and the brakes' hiss as it stops; the doors and the
-     air let go, partway through its wait; the pull-away, fading up the
-     street. Each follows the bus across the stereo field */
-  private busCue(name: "arrive" | "doors" | "leave", pan: number) {
-    const k = this.k("bus");
-    if (k <= 0 || !this.ctx) return;
+  /* the court: a ball on the asphalt, off the board, through a chain
+     net; a board's tail popped and its wheels come down. Small sounds,
+     each a little different every time */
+  private courtHit(kind: string, pan: number, s: number) {
+    const pick = (n: number) => 1 + Math.floor(Math.random() * n), r = rnd(0.94, 1.07);
+    if (kind === "bounce" || kind === "rim" || kind === "net") {
+      const k = this.k("ball") * s;
+      if (k <= 0) return;
+      if (kind === "bounce") this.shot("ball-bounce-" + pick(4), 0.55 * k, pan, r);
+      else if (kind === "rim") this.shot("ball-rim-" + pick(3), 0.6 * k, pan, r);
+      else this.shot("ball-net", 0.4 * k, pan, rnd(0.97, 1.04));
+    } else {
+      const k = this.k("skate") * s;
+      if (k <= 0) return;
+      if (kind === "pop") this.shot("skate-pop", 0.5 * k, pan, r);
+      else if (kind === "land") this.shot("skate-land", 0.6 * k, pan, r);
+      else {
+        /* come down without them: it clatters, two or three knocks */
+        this.shot("skate-land", 0.5 * k, pan, rnd(0.8, 0.9));
+        this.timers.push(window.setTimeout(() => this.shot("skate-land", 0.35 * k, pan, rnd(1.05, 1.2)), rnd(90, 150)));
+        if (Math.random() < 0.6) this.timers.push(window.setTimeout(() => this.shot("skate-land", 0.2 * k, pan, rnd(0.9, 1.1)), rnd(230, 330)));
+      }
+    }
+  }
+  /* the bus (a real MTA bus at a stop on 8th Avenue for its coming and
+     going; its kneeling alarm, a loud beeping at the stop, is left out):
+     the approach, from well down the street; the air let go as it
+     settles, and again at the doors, over the engine ticking while it
+     waits (a brake's hiss and a coach idling, from elsewhere); the
+     pull-away, fading up the street. Each follows the bus across the
+     stereo field, and like the el it's heard coming and going: */
+  private busCue(name: "arrive" | "air" | "idle" | "doors" | "leave", pan: number) {
+    if (this.k("bus") <= 0 || !this.ctx) return;
     const ctx = this.ctx;
-    this.buffer("bus-" + name).then((buf) => {
+    this.buffer(name === "doors" ? "bus-air" : "bus-" + name).then((buf) => {
       if (!buf || !this.ctx || !this.on) return;
-      const src = ctx.createBufferSource(); src.buffer = buf;
-      const g = ctx.createGain(); g.gain.value = (name === "doors" ? 0.7 : 0.85) * k;
-      const p = ctx.createStereoPanner(); p.pan.value = clamp(pan, -1, 1);
-      src.connect(g).connect(p).connect(this.out);
-      const entry = { src, p };
+      const b = this.last?.bus ?? null, h = busHeard(name, b);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = h.rate;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.5; lp.frequency.value = h.cut;
+      // (the engine's tick comes up under the rest, not on with a start)
+      const g = ctx.createGain(); g.gain.value = name === "idle" ? 0 : h.gain * this.k("bus");
+      const p = ctx.createStereoPanner(); p.pan.value = clamp(b?.pan ?? pan, -1, 1);
+      src.connect(lp).connect(g).connect(p).connect(this.out);
+      const entry = { name, src, g, lp, p };
       this.busSrcs.push(entry);
       src.onended = () => { this.busSrcs = this.busSrcs.filter((e) => e !== entry); };
       src.start();
@@ -307,6 +376,14 @@ export class CourtSound {
     const pan = this.last?.flock.pan ?? 0;
     if (key === "wings") this.wings(pan);
     else if (key === "bus") this.busCue("arrive", this.last?.bus?.pan ?? 0.6);
+    else if (key === "ball") {
+      // (a couple of dribbles and a shot: off the board, or in)
+      [0, 420, 840].forEach((ms) => this.timers.push(window.setTimeout(() => this.courtHit("bounce", 0, 0.75), ms)));
+      this.timers.push(window.setTimeout(() => this.courtHit(Math.random() < 0.5 ? "net" : "rim", 0, 1), 1700));
+    } else if (key === "skate") {
+      this.courtHit("pop", 0, 1);
+      this.timers.push(window.setTimeout(() => this.courtHit(Math.random() < 0.6 ? "land" : "bail", 0, 1), 540));
+    }
     else if (key === "birds") this.birds(true);
     else if (key === "crickets") this.crickets(true);
   }
@@ -332,14 +409,33 @@ export class CourtSound {
       this.trainSrc.g.gain.setTargetAtTime(1.1 * this.k("train") * Math.pow(tn, 1.3), this.ctx.currentTime, 0.3);
       this.trainSrc.p.pan.setTargetAtTime(f.train.pan, this.ctx.currentTime, 0.2);
     }
+    /* the court */
+    for (const h of f.court.heard) this.courtHit(h.k, h.pan, h.s);
+    {
+      const roll = f.court.roll, pace = clamp((roll?.v ?? 0) / 11), R = L.roll;
+      this.set(R, 0.5 * this.k("skate") * Math.pow(pace, 1.3), 0.12);
+      if (roll) R.p?.pan.setTargetAtTime(roll.pan, this.ctx.currentTime, 0.2);
+      // (the faster it rolls, the higher it sings)
+      R.src?.playbackRate.setTargetAtTime(0.8 + 0.35 * pace, this.ctx.currentTime, 0.2);
+    }
     /* the bus: each sound once per bus, at its moment */
     const b = f.bus;
-    if (!b) this.busDone = { arrive: false, doors: false, leave: false };
+    if (!b) this.busDone = { arrive: false, air: false, doors: false, leave: false };
     else {
-      if (b.phase === "in" && b.toStop < 72 && !this.busDone.arrive) { this.busDone.arrive = true; this.busCue("arrive", b.pan); }
+      // (from the moment it sets out, still out of sight down the street)
+      if (b.phase === "in" && !this.busDone.arrive) { this.busDone.arrive = true; this.busCue("arrive", b.pan); }
+      // (as it settles: the last couple of feet are a crawl)
+      if ((b.phase === "dwell" || (b.phase === "in" && b.toStop < 1.2)) && !this.busDone.air) { this.busDone.air = true; this.busCue("air", b.pan); this.busCue("idle", b.pan); }
       if (b.phase === "dwell" && b.t > 4.5 && !this.busDone.doors) { this.busDone.doors = true; this.busCue("doors", b.pan); }
       if ((b.phase === "out" || b.phase === "drive") && !this.busDone.leave) { this.busDone.leave = true; this.busCue("leave", b.pan); }
-      for (const e of this.busSrcs) e.p.pan.setTargetAtTime(b.pan, this.ctx.currentTime, 0.4);
+      const now = this.ctx.currentTime, k = this.k("bus");
+      for (const e of this.busSrcs) {
+        const h = busHeard(e.name, b);
+        e.g.gain.setTargetAtTime(h.gain * k, now, 0.35);
+        e.lp.frequency.setTargetAtTime(h.cut, now, 0.35);
+        e.src.playbackRate.setTargetAtTime(h.rate, now, 0.5);
+        e.p.pan.setTargetAtTime(b.pan, now, 0.4);
+      }
     }
     /* the pigeons: cooing while they're down, wings as they go up */
     this.playLoop(L.coo, "coo-1");

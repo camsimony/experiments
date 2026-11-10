@@ -17,6 +17,13 @@ loops, crossfaded end-to-start with ffmpeg.
 | wings-1.mp3 | 701283 | pigeons flying wings noise | |
 | wings-2.mp3 | 689998 | Pigeon, Flies Away, Flapping Wings | |
 | coo-1.mp3 | 154865 | pidgeons cooing city park | |
+| bus-arrive.mp3 / bus-leave.mp3 | 353176 | NYCbus.wav — MTA bus stopping, letting someone off and driving away, 8th Ave & 53rd St (cuts 3.5–17.9s and 34–47s, either side of its kneeling alarm; lightly compressed) | allanh15 |
+| bus-air.mp3 | 801435 | air brake sound effect — air brake on a bus (0.9–2.3s) | okpato123 |
+| bus-idle.mp3 | 454420 | bus coach ext pull up brake air release idle (2–26s, the idle) | kyles |
+| ball-bounce-1…4.mp3 | 453757 | basketball ext dribble bounce hard surface (four single bounces) | kyles |
+| ball-rim-1…3.mp3 | 675319 | S02-28 Basketball hard against backboard (three hits) | craigsmith |
+| ball-net.mp3 | 788259 | Sports Basketball Hit Basket — a made shot through a chain net at a park (0–0.8s) | amsaenz03 |
+| skate-pop.mp3 / skate-land.mp3 | 515229 | skateboard ollie (the pop, and the landing) | nolimitkid |
+| skate-roll.mp3 | 836284 | skate board rolling — close up, on a road (1:44–1:54 of the straight rolling, made to loop) | bruno.auzet |
 
 https://freesound.org/s/<id>/
-| bus-arrive.mp3 / bus-doors.mp3 / bus-leave.mp3 | 353176 | NYCbus.wav — MTA bus stopping, letting someone off and driving away, 8th Ave & 53rd St (cuts 8–24s, 24.6–29.2s, 33.5–49.9s) | allanh15 |

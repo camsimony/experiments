@@ -36,7 +36,7 @@ function Tiny({ on, label, title, onClick, children }: { on?: boolean; label: st
   );
 }
 
-export default function SoundMixer({ sound, ensureOn, sendTrain }: { sound: () => CourtSound | null; ensureOn: () => void; sendTrain: () => void }) {
+export default function SoundMixer({ sound, ensureOn, sendTrain, sendBus }: { sound: () => CourtSound | null; ensureOn: () => void; sendTrain: () => void; sendBus: () => void }) {
   const [open, setOpen] = useState(false);
   const [mix, setMix] = useState<MixerState>(DEFAULT_MIX);
   const [copied, setCopied] = useState(false);
@@ -64,6 +64,7 @@ export default function SoundMixer({ sound, ensureOn, sendTrain }: { sound: () =
   const play = (k: string) => {
     ensureOn();
     if (k === "train") sendTrain();
+    else if (k === "bus") sendBus();
     else window.setTimeout(() => sound()?.play(k), 60);
   };
   const select = (label: string, value: string, options: Record<string, string>, set: (v: string) => void) => (
@@ -99,7 +100,7 @@ export default function SoundMixer({ sound, ensureOn, sendTrain }: { sound: () =
           ref={panel}
           role="dialog"
           aria-label="Sound mixer"
-          className="absolute bottom-full right-0 z-20 mb-2 w-[340px] rounded-xl border border-neutral-200 bg-white p-3 text-[12px] text-neutral-700 shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+          className="absolute bottom-full right-0 z-20 mb-2 w-[340px] rounded-xl border border-neutral-200 bg-white p-3 text-[12px] font-normal text-neutral-700 shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="w-24 shrink-0 font-medium text-neutral-800">Master</span>
@@ -132,7 +133,7 @@ export default function SoundMixer({ sound, ensureOn, sendTrain }: { sound: () =
                     <span className="w-7 text-right tabular-nums text-neutral-400">{lv.toFixed(1)}</span>
                     <Tiny on={!!mix.mute[v.key]} label={`Mute ${v.label}`} title="Mute" onClick={() => flip("mute", v.key)}>M</Tiny>
                     <Tiny on={!!mix.solo[v.key]} label={`Solo ${v.label}`} title="Solo" onClick={() => flip("solo", v.key)}>S</Tiny>
-                    {v.shot ? <Tiny label={`Play ${v.label}`} title={v.key === "train" ? "Send a train" : "Play one"} onClick={() => play(v.key)}><Play size={10} strokeWidth={2} aria-hidden /></Tiny> : <span className="w-5" />}
+                    {v.shot ? <Tiny label={`Play ${v.label}`} title={v.key === "train" ? "Send a train" : v.key === "bus" ? "Send the bus" : "Play one"} onClick={() => play(v.key)}><Play size={10} strokeWidth={2} aria-hidden /></Tiny> : <span className="w-5" />}
                     {v.hold ? <Tiny on={!!mix.hold[v.key]} label={`Hold ${v.label} on`} title="Hold on (hear it out of season)" onClick={() => { ensureOn(); flip("hold", v.key); }}>H</Tiny> : <span className="w-5" />}
                   </div>
                 </div>

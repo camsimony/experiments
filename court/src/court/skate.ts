@@ -143,6 +143,7 @@ export function createSkaters(L: Layout) {
           if (d < 1.5 || (d < s.v * 0.3 && !s.pushing)) {
             s.phase = "air"; s.t = 0;
             s.land = Math.random() < Math.min(0.85, ODDS[s.trick] + s.tries * 0.05);
+            hear("pop", s);
           }
           break;
         }
@@ -159,6 +160,7 @@ export function createSkaters(L: Layout) {
           boardWith(s);
           if (u >= 1) {
             s.h = 0; s.t = 0; s.tries++;
+            hear(s.land ? "land" : "bail", s);
             if (s.land) { s.phase = "ride"; s.yaw = 0; s.flip = 0; }
             else {
               /* off it goes, on its own; they run it out */
@@ -237,6 +239,24 @@ export function createSkaters(L: Layout) {
     nextGo = Math.random() < 0.25 ? rnd(8, 16) : rnd(1.5, 4);
   };
 
+  /* what there is to hear of it, since last asked: the tail popped, the
+     board landed, or the board come down without them; and where across
+     the scene */
+  const heard: { k: "pop" | "land" | "bail"; x: number; s: number }[] = [];
+  function hear(k: "pop" | "land" | "bail", s: Skater) { if (heard.length < 6) heard.push({ k, x: W(s.x, s.y)[0], s: present }); }
+  const sounds = () => heard.splice(0);
+  /* and the wheels: the fastest board rolling just now (ft/s, and where),
+     under someone or off on its own */
+  const rolling = () => {
+    let v = 0, x = 0;
+    if (state !== "off") for (const s of S) {
+      const afoot = s.phase === "bail" || s.phase === "fetch";
+      const sp = (afoot ? s.bv : s.h > 0 ? 0 : s.v) * present;
+      if (sp > v) { v = sp; x = W(s.bx, s.by)[0]; }
+    }
+    return v > 0.4 ? { v, x } : null;
+  };
+
   const threats = (): [number, number, number][] => present > 0.1 ? S.map((s) => [...W(s.x, s.y), 7] as [number, number, number]) : [];
   const busy = () => state !== "off";
 
@@ -264,5 +284,5 @@ export function createSkaters(L: Layout) {
     });
     return { A, B, C, D, Bd, Bd2 };
   }
-  return { update, pack, threats, busy };
+  return { update, pack, threats, busy, sounds, rolling };
 }

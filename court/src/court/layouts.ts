@@ -93,10 +93,10 @@ const half = (() => {
        the bus stop (2026-11-08; the two-way version with parking both
        sides is tagged court-before-bus-stop) */
     stop: [st1 + 2.6 * ft, 0.335, st1 + 7 * ft, 0.435],
-    zone: 0.8,
+    zone: 0.7,
     cars: [
-      [farKerb, 0.865, 0, 2],
-      [farKerb, 0.99, 2, 2],
+      [farKerb, 0.765, 0, 2],
+      [farKerb, 0.89, 2, 2],
       [0.3, elPark, 4, 1],
       [0.66, elPark, 1, 1],
     ],

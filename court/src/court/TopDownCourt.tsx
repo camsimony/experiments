@@ -52,6 +52,10 @@ const SCALE_MIN = 0.7;
    screen: a full-width canvas on a 5K display at 1.6× would be ten
    million */
 const PIXEL_BUDGET = 3.2e6;
+/* the drawing-in: how long it takes, s; (dev: ?draw=0..1 holds it at a
+   point, ?draw=1 skips it) */
+const DRAW_S = 5.2;
+const pinnedDraw = import.meta.env.DEV && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("draw") ? Number(new URLSearchParams(window.location.search).get("draw")) : -1;
 const pinnedScale = import.meta.env.DEV && typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("scale")) || 0 : 0;
 
 /* the pointer parting the leaves: off for now, to be revisited */
@@ -98,14 +102,23 @@ const gNoise = (x: number) => { const i = Math.floor(x); let f = x - i; f = f * 
 const sstep = (a: number, b: number, x: number) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
 const gustAt = (gt: number, t: number) => sstep(0.55, 0.92, gNoise(gt)) * (0.75 + 0.25 * gNoise(t * 0.7 + 4));
 
-export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, paint, label, sound, onReady, onFail }: { season: number; tod?: number; trainCall?: number; layout: Layout; paint: Paint; label: string; sound?: CourtSound | null; onReady?: () => void; onFail?: () => void }) {
+export default function TopDownCourt({ season, tod = 0, trainCall = 0, busCall = 0, layout, paint, label, sound, onReady, onFail, onDrawn, redraw = 0, drawSpeed = 1 }: { season: number; tod?: number; trainCall?: number; busCall?: number; layout: Layout; paint: Paint; label: string; sound?: CourtSound | null; onReady?: () => void; onFail?: () => void; onDrawn?: () => void; redraw?: number; drawSpeed?: number }) {
   /* told once when the first frame's drawn, and if it can't be: no
      WebGL2, a shader that won't build, or the context lost */
   const readyRef = useRef(onReady); readyRef.current = onReady;
+  const drawnRef = useRef(onDrawn); drawnRef.current = onDrawn;
   const failRef = useRef(onFail); failRef.current = onFail;
   /* a test hook: each change of trainCall sends a train now */
   const called = useRef(trainCall);
   called.current = trainCall;
+  /* and each change of busCall sends the bus: the car at its stop pulls
+     out, and it comes */
+  /* each change of redraw draws the scene in again, at drawSpeed (1 is
+     the pace it opens at; less is slower) */
+  const redrawn = useRef(redraw); redrawn.current = redraw;
+  const pace = useRef(drawSpeed); pace.current = drawSpeed;
+  const busCalled = useRef(busCall);
+  busCalled.current = busCall;
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const todTarget = useRef(tod);
   todTarget.current = tod;
@@ -256,10 +269,11 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
        direction, at about 40 mph */
     const CAR_FT = 51, CARS = 8, SPEED = 0.55; // world units per second
     const train = { on: false, x: 0, track: 1, dir: -1, at: performance.now() + 25000, last: 0 };
-    let lastCall = called.current;
+    let lastCall = called.current, lastBus = busCalled.current;
     const runTrain = (now: number) => {
       const L = plan.current;
       if (called.current !== lastCall) { lastCall = called.current; if (!train.on) train.at = now; }
+      if (busCalled.current !== lastBus) { lastBus = busCalled.current; traffic.bus(); }
       if (!L.el || still) { train.on = false; return; }
       const len = CAR_FT * CARS * L.ft, W = L.world[0];
       if (!train.on && now >= train.at) {
@@ -285,7 +299,11 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
        the same way, quicker, before the dark lifts */
     let lightsK = todTarget.current > 0.9 ? 1 : 0;
     let raf = 0, last = 0, visible = true, alive = true;
-    const t0 = performance.now();
+    /* the drawing-in: 0 to 1 over DRAW_S of frames actually shown; the
+       scene holds still under the pencil, and its clock starts as the
+       last of the water goes on */
+    let drawn = still ? 1 : pinnedDraw >= 0 ? Math.min(1, pinnedDraw) : 0, drawnAt = 0, told = false;
+    let clock = 0, lastRedraw = redrawn.current;
 
     /* wind time: runs on at the breeze's pace, faster in a gust, so what's
        blowing about speeds up and slows down smoothly */
@@ -296,7 +314,13 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
     const hist = new Float32Array(32);   // (fallT, gust) pairs
     let histAt = 0;
     const draw = (now: number) => {
-      const t = still ? 12 : (now - t0) / 1000;
+      const rdt = drawnAt ? Math.min(0.1, Math.max(0, (now - drawnAt) / 1000)) : 0;
+      drawnAt = now;
+      if (redrawn.current !== lastRedraw) { lastRedraw = redrawn.current; if (!still) { drawn = 0; told = false; } }
+      if (drawn < 1 && pinnedDraw < 0) drawn = Math.min(1, drawn + rdt * pace.current / DRAW_S);
+      if (drawn > 0.93) clock += rdt;
+      if (drawn >= 1 && !told) { told = true; drawnRef.current?.(); }
+      const t = still ? 12 : clock;
       const dt = Math.min(0.1, Math.max(0, t - tPrev));
       tPrev = t;
       /* the gust clock: about one gust each `every` seconds */
@@ -379,8 +403,12 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
         traffic.update(sdt, people.positions(), people.crossings(), people.bikes());
       }
       /* the sound: what it needs to know of the scene */
+      // (asked for whether or not anyone's listening, so they don't pile up)
+      const ballHeard = pickup.sounds(), skateHeard = skaters.sounds();
       if (soundRef.current?.enabled) {
         const Lw = plan.current.world[0], len = CAR_FT * CARS * plan.current.ft;
+        const panAt = (x: number) => Math.max(-1, Math.min(1, (x - Lw / 2) / (Lw / 2))) * 0.8;
+        const roll = skaters.rolling();
         const tc = train.x - train.dir * len / 2;
         const fi = flock.info();
         soundRef.current.frame({
@@ -391,7 +419,11 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
             near: Math.max(0, Math.min(1, 1 - (Math.max(0, Math.abs(tc - Lw / 2) - Lw * 0.3)) / (Lw * 0.9))),
           },
           flock: { down: fi.down, pan: Math.max(-1, Math.min(1, (fi.x - Lw / 2) / (Lw / 2))) * 0.8 },
-          bus: (() => { const b = traffic.busState(); return b ? { pan: Math.max(-1, Math.min(1, (b.x - Lw / 2) / (Lw / 2))) * 0.8, phase: b.phase, t: b.t, toStop: b.toStop } : null; })(),
+          bus: (() => { const b = traffic.busState(); return b ? { pan: Math.max(-1, Math.min(1, (b.x - Lw / 2) / (Lw / 2))) * 0.8, phase: b.phase, t: b.t, toStop: b.toStop, v: b.v } : null; })(),
+          court: {
+            heard: [...ballHeard, ...skateHeard].map((h) => ({ k: h.k, pan: panAt(h.x), s: h.s })),
+            roll: roll ? { v: roll.v, pan: panAt(roll.x) } : null,
+          },
         });
       }
       const sk = skaters.pack();
@@ -406,6 +438,9 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
       gl.uniform4fv(u.u_playerB, pk.B);
       gl.uniform4fv(u.u_playerC, pk.C);
       gl.uniform4fv(u.u_playerD, pk.D);
+      gl.uniform4fv(u.u_playerF, pk.Ft);
+      gl.uniform4fv(u.u_playerG, pk.G);
+      gl.uniform4fv(u.u_playerH, pk.H);
       gl.uniform4fv(u.u_ball, pk.Bl);
       const pe = people.pack();
       gl.uniform4fv(u.u_person, pe.A);
@@ -413,6 +448,7 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
       gl.uniform4fv(u.u_personC, pe.C);
       gl.uniform4fv(u.u_personD, pe.Sk);
       gl.uniform4fv(u.u_personE, pe.Ex);
+      gl.uniform4fv(u.u_personF, pe.Ft);
       gl.uniform4fv(u.u_dog, pe.D);
       gl.uniform4fv(u.u_dogB, pe.E);
       const fl = flock.pack();
@@ -493,6 +529,7 @@ export default function TopDownCourt({ season, tod = 0, trainCall = 0, layout, p
       const short = Math.min(cv.width, cv.height);
       gl.uniform1f(v.u_feather, short * 0.11);
       gl.uniform1f(v.u_blur, short * 0.022);
+      gl.uniform1f(v.u_draw, drawn);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
 

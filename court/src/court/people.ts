@@ -46,11 +46,23 @@ type Person = {
   /* off to their car: kept to their line (no wander round it), and in
      at the end of it */
   tight?: boolean; done?: (() => void) | null;
+  /* on their feet (as the pickup players are: see pickup.ts). Each foot
+     is somewhere on the ground (in feet: world / ft) and stays there
+     while it's down, the body carried over it, then is picked up and put
+     down a step ahead. px, py: where the body was last frame; fsp: how
+     fast it's actually going */
+  fl: [number, number]; fr: [number, number];
+  sw: number; su: number; sdur: number; sf: [number, number]; st: [number, number]; last: number;
+  px: number; py: number; fsp: number;
 };
 type Dog = { x: number; y: number; hd: number; phase: number; wob: number; owner: number; col: [number, number, number] };
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
+/* how far from the body a foot's drawn (ft): as it is up to the first,
+   never past the second (a leg at full stretch, from above, has its knee
+   bent and its heel up) */
+const REACH_NEAR = 0.9, REACH_MAX = 1.7;
 const wrapPi = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 type C3 = [number, number, number];
 const c3 = (c: readonly number[]) => [c[0], c[1], c[2]] as C3;
@@ -118,6 +130,7 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
     on: false, route: [], seg: 0, s: 0, wait: 0, side: 0, speed: 4, x: 9, y: 9, hd: 0, phase: 0,
     shirt: [0.5, 0.5, 0.5], hair: [0.1, 0.1, 0.1], skin: [0.7, 0.5, 0.4], bare: 0, kind: 0, look: 0,
     seed: 0, cad: 1, armK: 1, phone: 0, v: 0, pause: 0, glanceT: 3, avoid: 0,
+    fl: [0, 0], fr: [0, 0], sw: -1, su: 0, sdur: 0.4, sf: [0, 0], st: [0, 0], last: 0, px: 9, py: 9, fsp: 0,
   }));
   const dog: Dog = { x: 9, y: 9, hd: 0, phase: 0, wob: 0, owner: -1, col: [0.8, 0.7, 0.5] };
   let nextIn = rnd(1, 3), nextMail = rnd(20, 60), nextRider = rnd(5, 25);
@@ -315,7 +328,10 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
       p.pause = Math.max(0, p.pause - dt);
       if (!bike && p.phone && p.pause <= 0 && Math.random() < dt * 0.04) p.pause = rnd(2, 5);
       const want = p.pause > 0 ? 0 : p.speed * (1 + 0.08 * Math.sin(T * 0.31 + p.seed));
-      p.v += (want - p.v) * Math.min(1, dt * (want < p.v ? 2.5 : 1.5));
+      /* (pulling up in a step or two, and off again nearly as briskly:
+         not drifting to a stop. A bike coasts) */
+      if (bike) p.v += (want - p.v) * Math.min(1, dt * (want < p.v ? 2.5 : 1.5));
+      else p.v += Math.max(-9 * dt, Math.min(5.5 * dt, want - p.v));
       p.s += p.v * ft * dt;
       let a = p.route[p.seg], b = p.route[p.seg + 1];
       let len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-6;
@@ -365,9 +381,7 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
       /* (and never far from their line: a gentle pull back) */
       const cx_ = a[0] + (b[0] - a[0]) / len * p.s - (b[1] - a[1]) / len * side * ft, cy_ = a[1] + (b[1] - a[1]) / len * p.s + (b[0] - a[0]) / len * side * ft;
       p.x += (cx_ - p.x) * Math.min(1, dt * 0.6); p.y += (cy_ - p.y) * Math.min(1, dt * 0.6);
-      p.phase += dt * (bike ? 5 * p.v / 15 : p.v * 0.95 * p.cad);
-      /* (slowing to a stop, the feet come together: eased, not snapped) */
-      if (!bike && p.v < 1.5) p.phase += (Math.round(p.phase / Math.PI) * Math.PI - p.phase) * Math.min(1, dt * 3 * (1 - p.v / 1.5));
+      if (bike) p.phase += dt * 5 * p.v / 15;
       /* glances: now and then a look to one side, held a moment */
       if (!bike) {
         p.glanceT -= dt;
@@ -385,6 +399,74 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
         if (Math.hypot(ddx, ddy) > 0.05 * ft) dog.hd += wrapPi(Math.atan2(ddy, ddx) - dog.hd) * Math.min(1, dt * 5);
         dog.phase += dt * 9;
       }
+    });
+    feet(dt);
+  }
+
+  /* ── the feet. Everyone on foot (not the one on the bench, not a bike):
+     each foot has its place under the body, and is picked up once the
+     body's left it behind by half a step, and put down half a step ahead
+     of where its place will be when it lands. A walk's about two steps a
+     second, each a little over two feet; a run's three, and longer.
+     Standing, a foot's only moved if it's ended up out of place (they've
+     turned, or shuffled over) */
+  const onFoot = (p: Person) => p.on && p.kind !== K.sit && p.kind !== K.bike && p.x < 8;
+  const stand = (p: Person) => {
+    const X = p.x / ft, Y = p.y / ft, lx = -Math.sin(p.hd) * 0.36, ly = Math.cos(p.hd) * 0.36;
+    p.fl = [X + lx, Y + ly]; p.fr = [X - lx, Y - ly]; p.sw = -1; p.px = p.x; p.py = p.y; p.fsp = 0;
+  };
+  function feet(dt: number) {
+    people.forEach((p) => {
+      if (!onFoot(p)) { p.px = 9; return; }
+      /* (just arrived, or just stepped off the bus: under them) */
+      if (p.px > 8 || Math.hypot(p.x - p.px, p.y - p.py) > 3 * ft) stand(p);
+      const X = p.x / ft, Y = p.y / ft;
+      const vx = (p.x - p.px) / ft / dt, vy = (p.y - p.py) / ft / dt, sp = Math.hypot(vx, vy);
+      p.px = p.x; p.py = p.y; p.fsp = sp;
+      const fwd: [number, number] = [Math.cos(p.hd), Math.sin(p.hd)];
+      const wdt = p.kind === K.bags ? 0.42 : 0.36;
+      const vh: [number, number] = sp > 0.01 ? [vx / sp, vy / sp] : [0, 0];
+      const stepLen = (1.72 + 0.17 * sp) * p.cad;
+      const home = (k: number, lead: number): [number, number] => {
+        const sgn = k === 0 ? 1 : -1;
+        return [X + vx * lead - fwd[1] * wdt * sgn, Y + vy * lead + fwd[0] * wdt * sgn];
+      };
+      const skew = (k: number) => {
+        const f = k === 0 ? p.fl : p.fr, ex = f[0] - X, ey = f[1] - Y;
+        if (Math.hypot(ex, ey) < 0.2) return 0;
+        return wrapPi(Math.atan2(ey, ex) - (p.hd + (k === 0 ? Math.PI / 2 : -Math.PI / 2)));
+      };
+      if (p.sw >= 0) {
+        const foot = p.sw === 0 ? p.fl : p.fr;
+        const down = p.sw === 0 ? p.fr : p.fl, reach = Math.hypot(down[0] - X, down[1] - Y);
+        p.su = Math.min(1, p.su + dt / p.sdur * (1 + Math.max(0, reach - 1.3) * 2));
+        const h = home(p.sw, (1 - p.su) * p.sdur), k = stepLen * 0.5 * Math.min(1, sp / 2);
+        p.st = [h[0] + vh[0] * k, h[1] + vh[1] * k];
+        const e = p.su * p.su * (3 - 2 * p.su);
+        foot[0] = p.sf[0] + (p.st[0] - p.sf[0]) * e; foot[1] = p.sf[1] + (p.st[1] - p.sf[1]) * e;
+        if (p.su >= 1) { p.last = p.sw; p.sw = -1; }
+      }
+      if (p.sw < 0) {
+        let pickF = -1, best = 0;
+        for (const k of [1 - p.last, p.last]) {
+          const foot = k === 0 ? p.fl : p.fr, h = home(k, 0);
+          const ex = h[0] - foot[0], ey = h[1] - foot[1];
+          const behind = ex * vh[0] + ey * vh[1], err = Math.hypot(ex, ey);
+          const due = sp > 0.8 ? behind / (stepLen * (k === p.last ? 0.5 : 0.36)) : 0;
+          const out = sp > 0.8 ? err / 1.6 : Math.max(err / 0.55, Math.abs(skew(k)) / 0.5);
+          const score = Math.max(due, out);
+          if (score >= 1 && score > best) { best = score; pickF = k; }
+        }
+        if (pickF >= 0) {
+          const foot = pickF === 0 ? p.fl : p.fr;
+          p.sw = pickF; p.su = 0; p.sf = [foot[0], foot[1]];
+          p.sdur = (sp < 0.8 ? 0.3 : 0.43 - 0.14 * Math.max(0, Math.min(1, (sp - 3.5) / 5))) / Math.sqrt(p.cad);
+        }
+      }
+      /* (what the sway, the shoulders' turn and the bags' swing go by:
+         how far the one foot's ahead of the other) */
+      const lead = ((p.fl[0] - p.fr[0]) * fwd[0] + (p.fl[1] - p.fr[1]) * fwd[1]) / 2.4;
+      p.phase = Math.asin(Math.max(-1, Math.min(1, lead)));
     });
   }
 
@@ -415,7 +497,7 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
      glance), (skin rgb, bare arms); the dog (x, y, heading, phase) and
      (rgb, owner) */
   const A = new Float32Array(PEOPLE * 4), B = new Float32Array(PEOPLE * 4), C = new Float32Array(PEOPLE * 4), Sk = new Float32Array(PEOPLE * 4), Ex = new Float32Array(PEOPLE * 4);
-  const D = new Float32Array(4), E = new Float32Array(4);
+  const D = new Float32Array(4), E = new Float32Array(4), Ft = new Float32Array(PEOPLE * 4);
   function pack() {
     people.forEach((p, i) => {
       /* (standing at a door, the walk cycle rests) */
@@ -424,10 +506,22 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
          down (from above, a touch bigger and smaller); all of it fading
          as they slow to a stop */
       const still = p.wait > 0 || p.kind === K.sit || p.kind === K.bike;
-      const go = still ? 0 : Math.min(1, p.v / Math.max(1, p.speed));
+      const go = still ? 0 : Math.min(1, (p.kind === K.bike ? p.v : p.fsp) / Math.max(1, p.speed));
       const sway = Math.sin(p.phase) * 0.07 * go * ft, twist = Math.sin(p.phase) * 0.08 * go;
-      const ph = p.wait > 0 ? Math.round(p.phase / Math.PI) * Math.PI : p.phase;
-      A.set(p.on ? [p.x - Math.sin(p.hd) * sway, p.y + Math.cos(p.hd) * sway, p.hd + twist, ph] : [9, 9, 0, 0], i * 4);
+      const ph = p.phase;
+      const bx = p.x - Math.sin(p.hd) * sway, by = p.y + Math.cos(p.hd) * sway, bh = p.hd + twist;
+      A.set(p.on ? [bx, by, bh, ph] : [9, 9, 0, 0], i * 4);
+      /* the feet, each where it is on the ground, in the body's own
+         frame (ahead, to its left; in the figure's drawn feet) */
+      if (onFoot(p) && p.px < 8) {
+        const loc = (f: [number, number]): [number, number] => {
+          let dx = f[0] - bx / ft, dy = f[1] - by / ft;
+          const r = Math.hypot(dx, dy);
+          if (r > REACH_NEAR) { const k = (REACH_NEAR + (REACH_MAX - REACH_NEAR) * (1 - Math.exp(-(r - REACH_NEAR) / (REACH_MAX - REACH_NEAR)))) / r; dx *= k; dy *= k; }
+          return [(dx * Math.cos(bh) + dy * Math.sin(bh)) / 1.4, (-dx * Math.sin(bh) + dy * Math.cos(bh)) / 1.4];
+        };
+        Ft.set([...loc(p.fl), ...loc(p.fr)], i * 4);
+      } else Ft.set([99, 0, 0, 0], i * 4);
       Ex.set([p.armK * go, p.phone, Math.cos(p.phase * 2) * go, 0], i * 4);
       B.set([...p.shirt, p.kind], i * 4);
       C.set([...p.hair, p.look], i * 4);
@@ -435,7 +529,7 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
     });
     D.set(dog.owner >= 0 ? [dog.x, dog.y, dog.hd, dog.phase] : [9, 9, 0, 0]);
     E.set([...dog.col, dog.owner]);
-    return { A, B, C, D, E, Sk, Ex };
+    return { A, B, C, D, E, Sk, Ex, Ft };
   }
   /* (dev: window.__people.spawn('bike'), or 'mail', 'stroller', ...) */
   const spawnDev = (k: string) => (k === "mail" ? mail() : spawn(k));
@@ -469,5 +563,7 @@ export function createPeople(L: Layout, season: () => number, night: () => numbe
   };
   /* the bikes on the road, for traffic to hang back behind: (x, y, speed ft/s) */
   const bikes = (): [number, number, number][] => people.filter((p) => p.on && p.kind === K.bike && p.x < 8).map((p) => [p.x, p.y, p.v]);
-  return { update, pack, threats, positions, crossings, bikes, board, driver, watch: (fn: typeof cars) => { cars = fn; }, spawn: (k: string) => (k === "rider" ? rider() : spawnDev(k)) };
+  /* (for checking: everyone on foot, their body, feet and speed) */
+  const debug = () => people.map((p) => onFoot(p) && p.px < 8 ? { x: p.x / ft, y: p.y / ft, v: p.fsp, fl: [...p.fl], fr: [...p.fr], sw: p.sw, kind: p.kind } : null);
+  return { debug, update, pack, threats, positions, crossings, bikes, board, driver, watch: (fn: typeof cars) => { cars = fn; }, spawn: (k: string) => (k === "rider" ? rider() : spawnDev(k)) };
 }
