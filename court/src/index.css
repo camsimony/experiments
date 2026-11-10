@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  /* keep room for the scrollbar, so its coming and going never reflows the page */
+  scrollbar-gutter: stable;
+}
+
+body {
+  color: oklch(20% 0 0);
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
